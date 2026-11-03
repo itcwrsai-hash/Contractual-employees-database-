@@ -61,12 +61,20 @@ body { margin: 0; background: #e9edf3; color: #111; font-family: Calibri, Carlit
 .gp-back .gp-sign { margin-top: 46px; }
 .inline-pair { display: flex; gap: 20px; }
 .inline-pair .gp-row { flex: none; }
+.gp-qr { position: absolute; top: 10px; right: 16px; width: 30mm; text-align: center; font-size: 10px; line-height: 1.2; }
+.gp-qr svg { display: block; width: 28mm; height: 28mm; margin: 0 auto 2px; }
+.gp-back-rows.has-qr { padding-right: 36mm; }
+.print-warn { width: 210mm; max-width: calc(100% - 16px); margin: 12px auto 0; padding: 10px 14px; border-radius: 8px; font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px; line-height: 1.45; background: #fff7e6; border: 1px solid #f0c36d; color: #6b4b00; }
+.print-warn.info { background: #eef4ff; border-color: #b9cdf5; color: #1d3a7a; }
 
 @media screen and (max-width: 840px) {
   .page { width: auto; min-height: auto; margin: 8px; padding: 18px; }
   .gp-box { width: auto; }
   .gp-content { padding-right: 0; }
   .gp-photo { position: static; margin: 0 0 10px auto; }
+  .gp-qr { position: static; margin: 0 0 10px auto; }
+  .gp-back-rows.has-qr { padding-right: 0; }
 }
 @media print {
   body { background: #fff; }

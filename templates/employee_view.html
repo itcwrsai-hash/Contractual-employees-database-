@@ -12,7 +12,7 @@
     <a class="btn secondary" href="{{ url_for('employee_card', emp_id=emp.id) }}" target="_blank">ID card / Gate pass</a>
     {% if is_admin %}
     <form method="post" action="{{ url_for('employee_delete', emp_id=emp.id) }}" class="inline"
-          onsubmit="return confirm('Delete {{ emp.name }} and their documents permanently?\n\nOnly for a record entered by mistake. Someone with attendance or wage entries cannot be deleted: set their Status to Inactive instead.')">
+          data-confirm="Delete {{ emp.name }} and their documents permanently?&#10;&#10;Only for a record entered by mistake. Someone with attendance or wage entries cannot be deleted: set their Status to Inactive instead.">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger">Delete</button>
     </form>
     {% endif %}
@@ -31,7 +31,14 @@
     <dt>Mobile</dt><dd>{{ emp.mobile or '-' }}</dd>
     <dt>Blood group</dt><dd>{{ emp.blood_group or '-' }}</dd>
     <dt>Address</dt><dd>{{ emp.address or '-' }}{% if emp.pincode %} – {{ emp.pincode }}{% endif %}</dd>
-    <dt>Gate pass</dt><dd>No. {{ emp.gate_pass_no or emp.emp_code }}{% if emp.gp_valid_upto %} · valid upto {{ emp.gp_valid_upto | dmy }}{% endif %}</dd>
+    <dt>Gate pass</dt><dd>No. {{ emp.gate_pass_no or emp.emp_code }}{% if emp.gp_valid_upto %} · valid upto {{ emp.gp_valid_upto | dmy }}{% endif %}
+      · <a href="{{ verify_link }}" target="_blank" title="The page a phone opens when it scans the QR code on the gate pass">QR check page</a>
+      {% if is_admin %}
+      <form method="post" action="{{ url_for('reissue_qr', emp_id=emp.id) }}" class="inline"
+            data-confirm="Issue a new QR code for {{ emp.name }}?&#10;&#10;Every gate pass printed before now will show NOT VALID when scanned. Use this when a card is lost or taken back, then print a new gate pass.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn secondary sm">Reissue QR (lost card)</button>
+      </form>
+      {% endif %}</dd>
     <dt>Aadhaar no.</dt><dd>{{ emp.aadhaar_no | fmt_aadhaar }}
       {% if emp.aadhaar_file %} · <a href="{{ url_for('files', rel_path=emp.aadhaar_file) }}" target="_blank">View Aadhaar card</a>{% else %} · <span class="badge warn">Card not uploaded</span>{% endif %}</dd>
     <dt>Designation / Trade</dt><dd>{{ emp.designation or '-' }}</dd>
@@ -68,7 +75,7 @@
         <div><a href="{{ url_for('files', rel_path=d.filename) }}" target="_blank">{{ d.title or 'Document' }}</a>
           <div class="small muted">{{ d.doc_type }} · uploaded {{ d.uploaded_at[:10] | dmy }}</div></div>
       </div>
-      <form method="post" action="{{ url_for('document_delete', doc_id=d.id) }}" class="inline" onsubmit="return confirm('Delete this document?')">
+      <form method="post" action="{{ url_for('document_delete', doc_id=d.id) }}" class="inline" data-confirm="Delete this document?">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger sm">Delete</button>
       </form>
     </li>

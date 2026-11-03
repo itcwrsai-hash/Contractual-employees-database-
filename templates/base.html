@@ -82,6 +82,13 @@
 </script>
 <script src="{{ url_for('static', filename='search.js') }}"></script>
 {% endif %}
+<script>
+// Forms with data-confirm="..." ask before submitting (the text is HTML-escaped, so names are safe in it).
+document.addEventListener('submit', function (e) {
+  var msg = e.target.getAttribute('data-confirm');
+  if (msg && !window.confirm(msg)) e.preventDefault();
+});
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

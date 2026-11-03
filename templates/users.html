@@ -19,13 +19,13 @@
         <td class="small muted" style="white-space:nowrap">{{ u.created_at[:10] | dmy }}</td>
         <td style="text-align:right;white-space:nowrap">
           {% if not me %}
-          <form method="post" class="inline" onsubmit="return confirm('{{ 'Remove administrator rights from' if u.is_admin else 'Make' }} {{ u.username }}{{ '' if u.is_admin else ' an administrator' }}?')">
+          <form method="post" class="inline" data-confirm="{{ 'Remove administrator rights from' if u.is_admin else 'Make' }} {{ u.username }}{{ '' if u.is_admin else ' an administrator' }}?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="action" value="role"><input type="hidden" name="user_id" value="{{ u.id }}">
             <input type="hidden" name="is_admin" value="{{ 0 if u.is_admin else 1 }}">
             <button class="btn secondary sm">{{ 'Make user' if u.is_admin else 'Make admin' }}</button>
           </form>
-          <form method="post" class="inline" onsubmit="return confirm('Delete user {{ u.username }}?')">
+          <form method="post" class="inline" data-confirm="Delete user {{ u.username }}?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="action" value="delete"><input type="hidden" name="user_id" value="{{ u.id }}">
             <button class="btn danger sm">Delete</button>

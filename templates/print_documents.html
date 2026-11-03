@@ -11,6 +11,38 @@
   {% endif %}
 </div>
 
+{% if kind == 'id-cards' %}
+<div class="card">
+  <h2>QR code for checking gate passes</h2>
+  <p class="small muted">Every gate pass gets a QR code on the back. Scanning it with any phone camera opens a page showing, with the
+    photo, whether the pass is <strong>valid today</strong> – so security staff can spot fake, expired or withdrawn cards. The page shows
+    only what is on the card, never Aadhaar, address or mobile number. The phone must be connected to the <strong>workshop network (Wi-Fi)</strong>.</p>
+  {% if qr.library_missing %}
+  <div class="flash error">The QR code program (segno) is not installed, so gate passes print without a QR code. Close the program and
+    start it again with start.bat (needs internet once), or run: python -m pip install -r requirements.txt</div>
+  {% endif %}
+  {% if qr.base %}
+  <p>QR codes open: <strong>{{ qr.base }}</strong>{% if not qr.configured %} <span class="muted small">(the address this page was opened with)</span>{% endif %}</p>
+  {% else %}
+  <div class="flash error">QR codes are not printed yet: the program is open as "localhost", which a phone cannot reach.
+    {% if is_admin %}Enter this PC's network address below.{% else %}Ask an administrator to set this PC's network address here.{% endif %}</div>
+  {% endif %}
+  {% if is_admin %}
+  <form method="post" action="{{ url_for('verify_url_setting') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="row">
+      <div><label>Address phones use to open this program</label>
+        <input type="url" name="verify_base_url" value="{{ qr.base if qr.configured else '' }}" placeholder="{{ qr.guess or 'http://192.168.1.20:5000' }}"></div>
+    </div>
+    <button class="btn secondary">Save address</button>
+    <p class="hint">{% if qr.guess %}This PC appears to be at <strong>{{ qr.guess }}</strong>. {% endif %}Ask your network administrator to give
+      this PC a <strong>fixed IP address</strong> first: the address is printed inside every QR code, so if it changes, cards must be reprinted.
+      Leave empty to use the address the program was opened with.</p>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 <form class="filters" method="get">
   <div class="grow"><label>Firm</label>
     <select name="firm_id" onchange="this.form.submit()"><option value="">-- Select firm --</option>
