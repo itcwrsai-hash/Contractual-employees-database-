@@ -13,9 +13,11 @@
     <a class="btn secondary" href="{{ url_for('employee_card', firm_id=firm.id) }}" target="_blank">Print all gate passes</a>
     <a class="btn secondary" href="{{ url_for('appointment_letter', firm_id=firm.id) }}" target="_blank">Print all appointment letters</a>
     <a class="btn secondary" href="{{ url_for('firm_form', firm_id=firm.id) }}">Edit</a>
+    {% if is_admin %}
     <form method="post" action="{{ url_for('firm_delete', firm_id=firm.id) }}" class="inline" onsubmit="return confirm('Delete this firm permanently?')">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger">Delete</button>
     </form>
+    {% endif %}
   </div>
 </div>
 

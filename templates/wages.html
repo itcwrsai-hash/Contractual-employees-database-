@@ -26,7 +26,7 @@
 <p class="small muted">
   Paid days = Present + ½ Half day{% if s.pay_weekly_off %} + Weekly off{% endif %}{% if s.pay_leave %} + Leave{% endif %}.
   EPF {{ '%g' % s.pf_rate }}% of basic{% if s.pf_ceiling %} (max ₹{{ s.pf_ceiling | int }}){% endif %} ·
-  ESI {{ '%g' % s.esi_rate }}% if gross ≤ ₹{{ s.esi_limit | int }}.
+  ESI {{ '%g' % s.esi_rate }}% of gross for employees covered in this contribution period (Apr–Sep / Oct–Mar), i.e. whose wages excluding overtime were within ₹{{ s.esi_limit | int }} in a month of the period.
 </p>
 <form method="post">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

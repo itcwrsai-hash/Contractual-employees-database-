@@ -10,10 +10,12 @@
     <a class="btn" href="{{ url_for('employee_form', emp_id=emp.id) }}">Edit</a>
     <a class="btn secondary" href="{{ url_for('appointment_letter', emp_id=emp.id) }}" target="_blank">Appointment letter</a>
     <a class="btn secondary" href="{{ url_for('employee_card', emp_id=emp.id) }}" target="_blank">ID card / Gate pass</a>
+    {% if is_admin %}
     <form method="post" action="{{ url_for('employee_delete', emp_id=emp.id) }}" class="inline"
-          onsubmit="return confirm('Delete {{ emp.name }} and all their documents and attendance permanently?\n\nTip: to keep records, edit the employee and set Status to Inactive instead.')">
+          onsubmit="return confirm('Delete {{ emp.name }} and their documents permanently?\n\nOnly for a record entered by mistake. Someone with attendance or wage entries cannot be deleted: set their Status to Inactive instead.')">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger">Delete</button>
     </form>
+    {% endif %}
   </div>
 </div>
 

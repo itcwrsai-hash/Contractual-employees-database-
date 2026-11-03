@@ -1,0 +1,10 @@
+# Live data: the database (Aadhaar, bank details, login accounts), uploaded documents and the
+# secret key. Never commit these, and never include this folder when uploading files on the
+# GitHub website.
+data/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/

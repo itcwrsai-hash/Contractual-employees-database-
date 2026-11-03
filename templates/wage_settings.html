@@ -16,6 +16,7 @@
 <div class="grid grid-2">
   <div class="card">
     <h2>Daily wage rates</h2>
+    <div style="overflow-x:auto">
     <table>
       <tr><th>Skill</th><th>Effective from</th><th class="num">Rate / day (₹)</th><th class="num">of which DA</th><th>Notes</th><th></th></tr>
       {% for r in rates %}
@@ -23,17 +24,21 @@
         <td>{{ r.skill_category }}</td><td>{{ r.effective_from | dmy }}</td>
         <td class="num">{{ '%.2f' % r.daily_rate }}</td><td class="num">{{ '%.2f' % r.da_rate if r.da_rate else '-' }}</td><td class="small muted">{{ r.notes or '' }}</td>
         <td style="text-align:right">
+          {% if is_admin %}
           <form method="post" class="inline" onsubmit="return confirm('Delete this rate?')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="action" value="rate_delete"><input type="hidden" name="rate_id" value="{{ r.id }}">
             <button class="btn danger sm">Delete</button>
           </form>
+          {% endif %}
         </td>
       </tr>
       {% else %}
       <tr><td colspan="6" class="empty">No rates entered yet.</td></tr>
       {% endfor %}
     </table>
+    </div>
+    {% if is_admin %}
     <form method="post" style="margin-top:14px">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="rate_add">
       <div class="row">
@@ -46,11 +51,15 @@
       <div class="row"><div><label>Notes (optional)</label><input type="text" name="notes" placeholder="e.g. Central minimum wage, Area B, incl. VDA"></div></div>
       <button class="btn">Add rate</button>
     </form>
+    {% else %}
+    <p class="hint" style="margin-top:14px">Only an administrator can add or delete wage rates.</p>
+    {% endif %}
   </div>
 
   <div class="card">
     <h2>Payroll settings</h2>
     <form method="post">
+      <fieldset style="border:0;padding:0;margin:0" {{ 'disabled' if not is_admin }}>
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="settings">
       <p><label style="font-weight:400"><input type="checkbox" name="pay_weekly_off" value="1" {{ 'checked' if s.pay_weekly_off }}> Pay for weekly off days (W)</label>
          <label style="font-weight:400"><input type="checkbox" name="pay_leave" value="1" {{ 'checked' if s.pay_leave }}> Pay for leave days (L)</label></p>
@@ -62,11 +71,15 @@
       <div class="row">
         <div><label>ESI – employee %</label><input type="number" step="0.01" min="0" name="esi_rate" value="{{ s.esi_rate }}"></div>
         <div><label>ESI – employer %</label><input type="number" step="0.01" min="0" name="esi_employer_rate" value="{{ s.esi_employer_rate }}"></div>
-        <div><label>ESI applies up to gross (₹/month)</label><input type="number" step="1" min="0" name="esi_limit" value="{{ s.esi_limit | int }}"></div>
+        <div><label>ESI wage ceiling (₹/month, excl. overtime; 0 = no ESI)</label><input type="number" step="1" min="0" name="esi_limit" value="{{ s.esi_limit | int }}"></div>
       </div>
-      <button class="btn">Save settings</button>
+      {% if is_admin %}<button class="btn">Save settings</button>{% else %}<p class="hint">Only an administrator can change these settings.</p>{% endif %}
+      </fieldset>
     </form>
-    <p class="small muted" style="margin-top:12px">EPF is calculated on basic wages (not on other allowances), rounded to the nearest rupee. ESI is calculated on gross earnings and rounded up to the next rupee, as per ESIC rules.</p>
+    <p class="small muted" style="margin-top:12px">EPF is calculated on basic wages (not on other allowances), rounded to the nearest rupee.
+      ESI coverage follows the ESI Act: an employee is covered when their wages for a month, leaving out overtime, are within the ceiling,
+      and then stays covered until the end of that contribution period (April–September or October–March) even if wages later go above it.
+      The ESI contribution is on all gross earnings including overtime, rounded up to the next rupee.</p>
   </div>
 </div>
 {% endblock %}

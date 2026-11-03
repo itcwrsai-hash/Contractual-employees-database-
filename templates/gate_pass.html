@@ -31,7 +31,7 @@
       <div class="gp-row"><span class="lbl">7. Date of Birth :</span><span class="fill short">{{ d3(e.dob) }}</span></div>
       <div class="gp-row"><span class="lbl">8. Blood Group :</span><span class="fill short">{{ e.blood_group or '' }}</span></div>
     </div>
-    <div class="gp-row"><span class="lbl">9. Aadhar Number :</span><span class="fill">{{ e.aadhaar_no | fmt_aadhaar }}</span></div>
+    <div class="gp-row"><span class="lbl">9. Aadhar Number :</span><span class="fill">{{ e.aadhaar_no | mask_aadhaar }}</span></div>
     <div class="gp-row"><span class="lbl">10. Present Address of Labour :</span><span class="fill">{{ e.address or '' }}</span></div>
     <div class="gp-row"><span class="lbl">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="lbl">Pin:</span><span class="fill short">{{ e.pincode or '' }}</span><span class="lbl">Mob:</span><span class="fill short">{{ e.mobile or '' }}</span></div>
     <div class="gp-note">Note: The Gate Pass cum Identity Card must be returned to the Railway Authority upon leaving the job or completion of the contract. It should be ensured by the contractor.</div>
