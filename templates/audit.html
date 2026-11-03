@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Audit log</h1>
+  <p class="muted small">Who did what, and when: logins, changes to firms, employees, attendance and wages, exports and user accounts.
+    Showing the latest {{ rows|length }} entr{{ 'y' if rows|length == 1 else 'ies' }}{{ ' matching “' ~ q ~ '”' if q }} (up to 500).</p></div></div>
+<form class="filters" method="get">
+  <div class="grow"><label>Search</label><input type="search" name="q" value="{{ q }}" placeholder="User, action, employee code or name, firm, date (YYYY-MM-DD), IP address"></div>
+  <div><button class="btn">Search</button></div>
+  {% if q %}<div><a class="btn secondary" href="{{ url_for('audit_log') }}">Clear</a></div>{% endif %}
+</form>
+<div class="card table-wrap">
+  <table>
+    <tr><th>When</th><th>User</th><th>Action</th><th>Details</th><th>Computer</th></tr>
+    {% for r in rows %}
+    <tr>
+      <td class="small" style="white-space:nowrap">{{ r.at[:10] | dmy }} {{ r.at[11:16] }}</td>
+      <td>{{ r.username or '–' }}</td>
+      <td style="white-space:nowrap">{% if r.action == 'Login failed' %}<span class="badge bad">{{ r.action }}</span>{% elif 'delete' in r.action|lower %}<span class="badge warn">{{ r.action }}</span>{% else %}{{ r.action }}{% endif %}</td>
+      <td class="small">{{ r.details or '' }}</td>
+      <td class="small muted">{{ r.ip or '' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="empty">No entries{{ ' match' if q }}.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

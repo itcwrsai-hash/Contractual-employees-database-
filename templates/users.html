@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Users</h1>
+  <p class="muted small">People who can log in to this system. <strong>Administrators</strong> can also manage users, see the audit log,
+    delete firms and employees, and change wage rates and payroll settings. <strong>Users</strong> can do everything else.</p></div>
+  <div class="actions"><a class="btn secondary" href="{{ url_for('audit_log') }}">Audit log</a></div>
+</div>
+<h2>Login accounts</h2>
+<div class="table-wrap">
+    <table>
+      <tr><th>Username</th><th>Role</th><th>Created</th><th></th></tr>
+      {% for u in users %}
+      {% set me = u.id == current_user.id %}
+      <tr>
+        <td>{{ u.username }}{% if me %} <span class="badge info">you</span>{% endif %}
+          {% if u.must_change_password %}<div class="small muted">must choose a new password at next login</div>{% endif %}</td>
+        <td>{% if u.is_admin %}<span class="badge ok">Administrator</span>{% else %}<span class="badge grey">User</span>{% endif %}</td>
+        <td class="small muted" style="white-space:nowrap">{{ u.created_at[:10] | dmy }}</td>
+        <td style="text-align:right;white-space:nowrap">
+          {% if not me %}
+          <form method="post" class="inline" onsubmit="return confirm('{{ 'Remove administrator rights from' if u.is_admin else 'Make' }} {{ u.username }}{{ '' if u.is_admin else ' an administrator' }}?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="action" value="role"><input type="hidden" name="user_id" value="{{ u.id }}">
+            <input type="hidden" name="is_admin" value="{{ 0 if u.is_admin else 1 }}">
+            <button class="btn secondary sm">{{ 'Make user' if u.is_admin else 'Make admin' }}</button>
+          </form>
+          <form method="post" class="inline" onsubmit="return confirm('Delete user {{ u.username }}?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="action" value="delete"><input type="hidden" name="user_id" value="{{ u.id }}">
+            <button class="btn danger sm">Delete</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+</div>
+<p class="hint">To change your own password use <a href="{{ url_for('account') }}">My account</a>.</p>
+<div class="grid grid-2" style="margin-top:18px">
+    <div class="card">
+      <h2>Add user</h2>
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="add">
+        <div class="row">
+          <div><label>Username</label><input type="text" name="username" required autocomplete="off"></div>
+          <div><label>Temporary password</label><input type="password" name="password" required minlength="8" autocomplete="new-password"></div>
+        </div>
+        <p><label style="font-weight:400"><input type="checkbox" name="is_admin" value="1"> Administrator</label></p>
+        <button class="btn">Add user</button>
+        <p class="hint">At least 8 characters. They will be asked to choose their own password when they first log in.</p>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Reset a password</h2>
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="reset">
+        <div class="row">
+          <div><label>User</label>
+            <select name="user_id" required><option value="">Choose…</option>{% for u in users if u.id != current_user.id %}<option value="{{ u.id }}">{{ u.username }}</option>{% endfor %}</select></div>
+          <div><label>Temporary password</label><input type="password" name="password" required minlength="8" autocomplete="new-password"></div>
+        </div>
+        <button class="btn">Reset password</button>
+        <p class="hint">For someone who forgot their password. They are logged out and must choose a new password at their next login.</p>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Change username</h2>
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="rename">
+        <div class="row">
+          <div><label>User</label>
+            <select name="user_id">{% for u in users %}<option value="{{ u.id }}" {{ 'selected' if u.id == current_user.id }}>{{ u.username }}{{ ' (you)' if u.id == current_user.id }}</option>{% endfor %}</select></div>
+          <div><label>New username</label><input type="text" name="username" required autocomplete="off"></div>
+        </div>
+        <button class="btn">Change username</button>
+        <p class="hint">The password stays the same.</p>
+      </form>
+    </div>
+</div>
+{% endblock %}

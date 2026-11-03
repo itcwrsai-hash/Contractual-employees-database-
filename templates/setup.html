@@ -9,8 +9,8 @@
     <form method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <p><label>Username</label><input type="text" name="username" required autofocus autocomplete="username"></p>
-      <p><label>Password (min 6 characters)</label><input type="password" name="password" required minlength="6" autocomplete="new-password"></p>
-      <p><label>Confirm password</label><input type="password" name="confirm" required minlength="6" autocomplete="new-password"></p>
+      <p><label>Password (min 8 characters)</label><input type="password" name="password" required minlength="8" autocomplete="new-password"></p>
+      <p><label>Confirm password</label><input type="password" name="confirm" required minlength="8" autocomplete="new-password"></p>
       <button class="btn">Create admin account</button>
     </form>
     <div class="org-line">Developed by {{ DEVELOPED_BY }}</div>

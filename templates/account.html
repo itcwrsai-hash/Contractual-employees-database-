@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}My account{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>My account</h1>
+  <p class="muted small">Logged in as <strong>{{ current_user.username }}</strong> ·
+    {{ 'Administrator' if is_admin else 'User' }}</p></div></div>
+{% if must_change %}
+<div class="flash error">Please choose a new password before you continue. This is needed after a security
+  update, or because an administrator set a temporary password for you.</div>
+{% endif %}
+<div class="grid grid-2">
+  <div class="card">
+    <h2>Change my password</h2>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <p><label>Current password</label><input type="password" name="current_password" required autocomplete="current-password" autofocus></p>
+      <p><label>New password (min 8 characters)</label><input type="password" name="password" required minlength="8" autocomplete="new-password"></p>
+      <p><label>Confirm new password</label><input type="password" name="confirm" required minlength="8" autocomplete="new-password"></p>
+      <button class="btn">Change password</button>
+    </form>
+    <p class="hint">Use a password you do not use anywhere else. Changing it logs this account out on every other computer.</p>
+  </div>
+</div>
+{% endblock %}
