@@ -25,7 +25,7 @@
         <td class="num">{{ '%.2f' % r.daily_rate }}</td><td class="num">{{ '%.2f' % r.da_rate if r.da_rate else '-' }}</td><td class="small muted">{{ r.notes or '' }}</td>
         <td style="text-align:right">
           {% if is_admin %}
-          <form method="post" class="inline" onsubmit="return confirm('Delete this rate?')">
+          <form method="post" class="inline" data-confirm="Delete this rate?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="action" value="rate_delete"><input type="hidden" name="rate_id" value="{{ r.id }}">
             <button class="btn danger sm">Delete</button>

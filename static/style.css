@@ -159,7 +159,7 @@ form .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px,
 label { display: block; font-size: 13px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
 label .req { color: var(--danger); }
 input[type=text], input[type=password], input[type=date], input[type=month], input[type=email], input[type=number],
-input[type=tel], input[type=search], select, textarea {
+input[type=tel], input[type=search], input[type=url], select, textarea {
   width: 100%; padding: 9px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font: inherit;
   background: #fff; color: var(--text); box-shadow: var(--shadow-xs); transition: border-color .15s, box-shadow .15s; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: #84a4f4; box-shadow: 0 0 0 4px #e3eaff; }
@@ -388,7 +388,7 @@ td a:hover { color: var(--primary-dark); }
 
 /* form fields light up on hover too */
 input[type=text]:hover, input[type=password]:hover, input[type=date]:hover, input[type=month]:hover, input[type=email]:hover,
-input[type=number]:hover, input[type=tel]:hover, input[type=search]:hover, select:hover, textarea:hover { border-color: #84a4f4; }
+input[type=number]:hover, input[type=tel]:hover, input[type=search]:hover, input[type=url]:hover, select:hover, textarea:hover { border-color: #84a4f4; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; }

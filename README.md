@@ -17,7 +17,7 @@ employees, and daily attendance.
   - **Police verification** – Yes/No; if Yes: certificate no., *valid upto* date, certificate upload.
   - **Qualification** with upload of any number of documents (plus other documents later).
   - **Skill category** – Skilled / Semi-skilled / Unskilled.
-  - Printable ID card / gate pass and appointment letter.
+  - Printable ID card / gate pass (with a QR code to check it – see below) and appointment letter.
 - **Attendance** – mark per firm per day (Present / Absent / Half day / Leave / Weekly off),
   "mark all" buttons, remarks.
 - **Monthly register** per firm with totals and days worked; print or export to Excel (CSV).
@@ -40,11 +40,31 @@ employees, and daily attendance.
 - **Search & filters** on employees (firm, skill, police verification state, status) and Excel export.
 - **Users, roles and audit log** – see below.
 
+## Checking a gate pass with the QR code
+
+The back of every gate pass has a QR code. Scan it with any phone camera: it opens a page that shows the
+employee's photo, name, firm and gate pass validity, with a big **VALID** (green), **VALID – WARNING**
+(orange: police verification expired or not done) or **NOT VALID** (red) banner. It checks the live records,
+so a card shows NOT VALID as soon as the employee is set *Inactive*, the firm is *Inactive*, or the gate
+pass validity date has passed. The page shows the date and time of the check, so an old screenshot is easy
+to spot. It never shows Aadhaar, address, mobile or bank details, and no login is needed to open it.
+
+- **The phone must be able to reach this PC**, so connect it to the workshop network (Wi-Fi). Phones on
+  mobile data cannot open it unless the program is put on the internet (not recommended without HTTPS).
+- **Set the address before printing.** On *ID cards / Gate passes*, an administrator enters the address
+  phones use, e.g. `http://192.168.1.20:5000`. Give this PC a **fixed IP address** first: the address is
+  printed inside every QR code, so if it changes, the cards must be reprinted. When the program is opened as
+  `localhost`, gate passes print without a QR code until the address is set.
+- **Lost or withdrawn card:** on the employee's page an administrator clicks **Reissue QR (lost card)**.
+  Every card printed before then shows NOT VALID; print a new gate pass.
+- Each QR code holds a random 16-character code, so links cannot be guessed or made up. Security staff
+  should still check that the phone's address bar shows the workshop address, not some other website.
+
 ## Running
 
 1. Install Python 3.10+ (already installed on this PC).
-2. Double-click **`start.bat`** (or run `python app.py`). The first time, it installs Flask and
-   Waitress (the web server) from `requirements.txt`.
+2. Double-click **`start.bat`** (or run `python app.py`). The first time, it installs Flask,
+   Waitress (the web server) and Segno (QR codes) from `requirements.txt`; this needs internet once.
 3. Open <http://localhost:5000>. On the first visit you create the administrator account.
 
 Other computers on the workshop network can open `http://<this-PC's-IP>:5000`.

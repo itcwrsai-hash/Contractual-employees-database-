@@ -14,18 +14,26 @@ import io
 import math
 import os
 import re
+import ipaddress
 import secrets
+import socket
 import sqlite3
 import threading
 import time
 import uuid
 from datetime import date, datetime, timedelta
 from functools import wraps
+from urllib.parse import urlsplit
 
-from flask import (Flask, Response, abort, flash, g, redirect, render_template,
+from flask import (Flask, Response, abort, flash, g, make_response, redirect, render_template,
                    request, send_from_directory, session, url_for)
 from markupsafe import Markup
 from werkzeug.security import check_password_hash, generate_password_hash
+
+try:
+    import segno  # draws the QR code on the gate pass
+except ImportError:  # not installed yet: gate passes print without the QR code
+    segno = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Set CEMS_DATA_DIR to keep the database and uploads somewhere other than ./data.
@@ -189,6 +197,8 @@ EXTRA_COLUMNS = {
         "gp_valid_from": "TEXT", "gp_valid_upto": "TEXT",
         # appointment letter
         "appt_date": "TEXT", "appt_other_allowance": "TEXT", "appt_duties": "TEXT", "appt_other_info": "TEXT",
+        # random code in the gate pass QR code (see /v/<token>); a new one cancels printed cards
+        "verify_token": "TEXT",
     },
     "firms": {"pincode": "TEXT", "lin_no": "TEXT", "registration_no": "TEXT", "loa_date": "TEXT"},
     "wage_rates": {"da_rate": "REAL DEFAULT 0"},          # DA/VDA part included in daily_rate
@@ -235,6 +245,7 @@ def init_db():
             for col, typ in columns.items():
                 if col not in existing:
                     db.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_emp_verify ON employees(verify_token)")
         db.executemany("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
                        PAYROLL_DEFAULTS.items())
         # Keep at least one administrator. Before user roles existed every account could do
@@ -511,7 +522,7 @@ def guard():
             session.clear()  # the account was deleted or its password changed: log in again
             return
         g.user = user
-        if user["must_change_password"] and request.endpoint not in ("account", "logout"):
+        if user["must_change_password"] and request.endpoint not in ("account", "logout", "verify", "verify_photo"):
             return redirect(url_for("account"))
 
 
@@ -1234,12 +1245,15 @@ def employee_view(emp_id):
     for row in db.execute("SELECT status, COUNT(*) c FROM attendance WHERE employee_id=? "
                           "AND substr(att_date,1,7)=? GROUP BY status", (emp_id, month)):
         att[row["status"]] = row["c"]
-    return render_template("employee_view.html", emp=emp, docs=docs, att=att, month=month)
+    base, _ = verify_base_url()
+    verify_link = url_for("verify", token=verify_token_of(db, emp_id, emp["verify_token"]))
+    return render_template("employee_view.html", emp=emp, docs=docs, att=att, month=month,
+                           verify_link=verify_link, qr_base=base)
 
 
 # ---------------------------------------------------------------- printable documents
 
-DOC_SQL = ("SELECT e.*, f.name firm_name, f.address firm_address, f.pincode firm_pincode, "
+DOC_SQL = ("SELECT e.*, f.name firm_name, f.status firm_status, f.address firm_address, f.pincode firm_pincode, "
            "f.mobile firm_mobile, f.email firm_email, f.work_order_no, f.loa_date, f.contract_start, "
            "f.contract_end, f.lin_no, f.registration_no, f.labour_licence_no, f.work_description "
            "FROM employees e JOIN firms f ON f.id=e.firm_id ")
@@ -1251,6 +1265,87 @@ def gate_pass_context(e):
     return {"e": e, "no": e["gate_pass_no"] or e["emp_code"],
             "valid_from": e["gp_valid_from"] or start,
             "valid_upto": e["gp_valid_upto"] or e["contract_end"]}
+
+
+# ---------------------------------------------------------------- gate pass QR verification
+# The QR code on a gate pass holds a link to /v/<token>. Anyone who scans it (e.g. the security
+# staff at the gate) sees, without logging in, whether the pass is valid today. The token is a
+# random code per employee, so links cannot be guessed or made up. Issuing a new token cancels
+# every card printed with the old one (lost card, card withdrawn).
+
+VERIFY_TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{16,64}")
+
+
+def verify_token_of(db, emp_id, token=None):
+    """The employee's QR token, created the first time it is needed."""
+    if token:
+        return token
+    db.execute("UPDATE employees SET verify_token=? WHERE id=? AND verify_token IS NULL",
+               (secrets.token_urlsafe(12), emp_id))  # 16 characters, 96 random bits
+    db.commit()
+    return db.execute("SELECT verify_token FROM employees WHERE id=?", (emp_id,)).fetchone()[0]
+
+
+def _is_loopback(host):
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def verify_base_url():
+    """(address printed in the QR codes, set by an admin?). Without a setting it is the address
+    this page was opened with, unless that is 'localhost', which a phone cannot open."""
+    row = get_db().execute("SELECT value FROM settings WHERE key='verify_base_url'").fetchone()
+    if row and row[0]:
+        return row[0], True
+    if _is_loopback(urlsplit(request.host_url).hostname or ""):
+        return None, False
+    return request.host_url.rstrip("/"), False
+
+
+def lan_address_guess():
+    """This PC's address on the workshop network, e.g. http://192.168.1.20:5000 (a suggestion)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("10.255.255.255", 1))  # sends nothing; picks the network card in use
+            ip = s.getsockname()[0]
+    except OSError:
+        return None
+    if _is_loopback(ip) or ip == "0.0.0.0":
+        return None
+    port = urlsplit(request.host_url).port
+    return f"http://{ip}" + (f":{port}" if port and port != 80 else "")
+
+
+def qr_svg(text):
+    if segno is None:
+        return None
+    return Markup(segno.make_qr(text, error="m").svg_inline(
+        border=2, omitsize=True, light="#fff", svgclass="qr", title="Scan to verify this gate pass"))
+
+
+def gate_pass_check(e):
+    """('valid' | 'warning' | 'invalid', reasons) for the public verification page."""
+    today = date.today().isoformat()
+    gp = gate_pass_context(e)
+    problems, warnings = [], []
+    if e["status"] != "Active":
+        problems.append("This person no longer works here: the gate pass has been withdrawn.")
+    if e["firm_status"] != "Active":
+        problems.append("The contractor firm is no longer working in the workshop.")
+    if gp["valid_upto"] and gp["valid_upto"] < today:
+        problems.append(f"The gate pass expired on {dmy(gp['valid_upto'])}.")
+    if gp["valid_from"] and gp["valid_from"] > today:
+        problems.append(f"The gate pass is valid only from {dmy(gp['valid_from'])}.")
+    pv = pv_state(e)
+    if pv == "pending":
+        warnings.append("Police verification has not been done.")
+    elif pv == "expired":
+        warnings.append(f"Police verification expired on {dmy(e['pv_valid_upto'])}.")
+    return ("invalid" if problems else "warning" if warnings else "valid"), problems + warnings
 
 
 def appointment_context(e, rates, s):
@@ -1331,7 +1426,11 @@ def print_documents(kind):
         sql += " AND (e.name LIKE ? OR e.emp_code LIKE ? OR e.father_name LIKE ?)"
         params += [f"%{q}%"] * 3
     rows = db.execute(sql + " ORDER BY f.name, e.name", params).fetchall() if (firm_id or q) else []
-    return render_template("print_documents.html", kind=kind, title=title, endpoint=endpoint, firms=firm_list,
+    qr = {}
+    if kind == "id-cards":
+        base, configured = verify_base_url()
+        qr = {"base": base, "configured": configured, "guess": lan_address_guess(), "library_missing": segno is None}
+    return render_template("print_documents.html", kind=kind, title=title, endpoint=endpoint, firms=firm_list, qr=qr,
                            firm_id=firm_id, status=status, q=q, rows=rows)
 
 
@@ -1341,8 +1440,86 @@ def print_documents(kind):
 @login_required
 def employee_card(emp_id=None, firm_id=None):
     rows = print_employees(firm_id, emp_id)
-    return render_template("gate_pass.html", passes=[gate_pass_context(e) for e in rows],
-                           back=request.referrer)
+    db = get_db()
+    base, _ = verify_base_url()
+    passes = []
+    for e in rows:
+        p = gate_pass_context(e)
+        if base:
+            p["verify_url"] = f"{base}/v/{verify_token_of(db, e['id'], e['verify_token'])}"
+            p["qr"] = qr_svg(p["verify_url"])
+        passes.append(p)
+    return render_template("gate_pass.html", passes=passes, back=request.referrer, qr_base=base,
+                           qr_library_missing=segno is None)
+
+
+@app.route("/v/<token>")
+def verify(token):
+    """Public page opened by scanning the QR code on a gate pass. No login is needed, so it shows
+    only what is printed on the front of the card – never Aadhaar, address, mobile or bank details."""
+    e = get_db().execute(DOC_SQL + "WHERE e.verify_token=?", (token,)).fetchone() \
+        if VERIFY_TOKEN_RE.fullmatch(token) else None
+    state, reasons, gp = (None, [], None)
+    if e:
+        state, reasons = gate_pass_check(e)
+        gp = gate_pass_context(e)
+    official, _ = verify_base_url()
+    resp = make_response(render_template("verify.html", e=e, state=state, reasons=reasons, gp=gp, token=token,
+                                         official=official, checked_at=datetime.now()), 200 if e else 404)
+    resp.headers["Cache-Control"] = "no-store"  # always show the status as it is now
+    return resp
+
+
+@app.route("/v/<token>/photo")
+def verify_photo(token):
+    e = get_db().execute("SELECT photo_file FROM employees WHERE verify_token=?", (token,)).fetchone() \
+        if VERIFY_TOKEN_RE.fullmatch(token) else None
+    if not e or not e["photo_file"]:
+        abort(404)
+    resp = send_from_directory(UPLOAD_DIR, e["photo_file"])
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route("/employees/<int:emp_id>/reissue-qr", methods=["POST"])
+@admin_required
+def reissue_qr(emp_id):
+    """New QR code for a lost or withdrawn card: every card printed before stops verifying."""
+    db = get_db()
+    emp = db.execute("SELECT emp_code, name FROM employees WHERE id=?", (emp_id,)).fetchone() or abort(404)
+    db.execute("UPDATE employees SET verify_token=? WHERE id=?", (secrets.token_urlsafe(12), emp_id))
+    db.commit()
+    audit("Gate pass QR reissued", f"{emp['emp_code']} {emp['name']} (id {emp_id}) – old cards cancelled")
+    flash(f"New QR code issued for {emp['name']}. Gate passes printed before now show NOT VALID when scanned – "
+          f"print a new gate pass.", "success")
+    return redirect(url_for("employee_view", emp_id=emp_id))
+
+
+@app.route("/settings/verify-url", methods=["POST"])
+@admin_required
+def verify_url_setting():
+    """The address printed in gate pass QR codes, e.g. http://192.168.1.20:5000."""
+    value = (request.form.get("verify_base_url") or "").strip().rstrip("/")
+    db = get_db()
+    if not value:
+        db.execute("DELETE FROM settings WHERE key='verify_base_url'")
+        db.commit()
+        audit("QR verification address changed", "cleared (use the address the page is opened with)")
+        flash("QR address cleared: the address used to open the program will be printed.", "success")
+    else:
+        parts = urlsplit(value)
+        if parts.scheme not in ("http", "https") or not parts.hostname or parts.query or parts.fragment \
+                or not re.fullmatch(r"[A-Za-z0-9.\-:\[\]]+", parts.netloc) \
+                or not re.fullmatch(r"[A-Za-z0-9/_.\-~]*", parts.path):
+            flash("Enter an address like http://192.168.1.20:5000", "error")
+        else:
+            db.execute("INSERT INTO settings (key, value) VALUES ('verify_base_url', ?) ON CONFLICT(key) DO UPDATE "
+                       "SET value=excluded.value", (value,))
+            db.commit()
+            audit("QR verification address changed", value)
+            flash(f"Gate pass QR codes will open {value}. Reprint gate passes printed with a different address.",
+                  "success")
+    return redirect(url_for("print_documents", kind="id-cards"))
 
 
 @app.route("/employees/<int:emp_id>/appointment")

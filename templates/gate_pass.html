@@ -4,6 +4,15 @@
 {% block body_class %}gate-pass{% endblock %}
 {% block count %}{% if passes|length > 1 %} – {{ passes|length }} employees{% endif %}{% endblock %}
 {% block pages %}
+{% if qr_library_missing %}
+<div class="print-warn no-print">These gate passes print <strong>without the QR code</strong>: the QR program (segno) is not installed.
+  Close the program and start it again with <strong>start.bat</strong> (needs internet once), or run <code>python -m pip install -r requirements.txt</code>.</div>
+{% elif not qr_base %}
+<div class="print-warn no-print">These gate passes print <strong>without the QR code</strong>, because the program was opened as "localhost", which a phone cannot reach.
+  An administrator can set this PC's network address on the <a href="{{ url_for('print_documents', kind='id-cards') }}">ID cards / Gate passes</a> page.</div>
+{% else %}
+<div class="print-warn info no-print">The QR code on the back opens <strong>{{ qr_base }}</strong>. Phones must be on the workshop network to check it.</div>
+{% endif %}
 {% for P in passes %}{% set e = P.e %}
 <div class="page">
   {# ---------------- front ---------------- #}
@@ -26,6 +35,8 @@
 
   {# ---------------- back ---------------- #}
   <div class="gp-box gp-back">
+    {% if P.qr %}<div class="gp-qr">{{ P.qr }}<div>Scan to verify</div></div>{% endif %}
+    <div class="gp-back-rows{{ ' has-qr' if P.qr }}">
     <div class="gp-row"><span class="lbl">6. Registration No. of Firm :</span><span class="fill">{{ e.registration_no or e.labour_licence_no or '' }}</span></div>
     <div class="inline-pair">
       <div class="gp-row"><span class="lbl">7. Date of Birth :</span><span class="fill short">{{ d3(e.dob) }}</span></div>
@@ -34,6 +45,7 @@
     <div class="gp-row"><span class="lbl">9. Aadhar Number :</span><span class="fill">{{ e.aadhaar_no | mask_aadhaar }}</span></div>
     <div class="gp-row"><span class="lbl">10. Present Address of Labour :</span><span class="fill">{{ e.address or '' }}</span></div>
     <div class="gp-row"><span class="lbl">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="lbl">Pin:</span><span class="fill short">{{ e.pincode or '' }}</span><span class="lbl">Mob:</span><span class="fill short">{{ e.mobile or '' }}</span></div>
+    </div>
     <div class="gp-note">Note: The Gate Pass cum Identity Card must be returned to the Railway Authority upon leaving the job or completion of the contract. It should be ensured by the contractor.</div>
     <div class="gp-sign"><span>Verifier (SSE/JE/Ch.OS/OS)</span><span>Counter Signing Authority</span></div>
   </div>

@@ -360,6 +360,120 @@ class AuditTest(Base):
         self.assertIn(b"Employee added", page.data)
 
 
+class QrVerifyTest(Base):
+    """The QR code on the gate pass opens a public page that says whether the pass is valid."""
+
+    ADDRESS = "http://192.168.1.20:5000"
+
+    def setUp(self):
+        super().setUp()
+        self.firm = self.add_firm()
+        self.emp = self.add_employee(self.firm, n=9)
+        run("UPDATE employees SET mobile='9876500000', address='Ward 5, Hidden Street', pv_done=1, "
+            "pv_valid_upto='2099-01-01' WHERE id=?", (self.emp,))
+        self.login()
+        self.public = A.app.test_client()  # someone at the gate, not logged in
+
+    def qr_token(self):
+        return query("SELECT verify_token FROM employees WHERE id=?", (self.emp,))[0][0]
+
+    def set_address(self, value=ADDRESS):
+        return self.post("/settings/verify-url", {"verify_base_url": value})
+
+    def check(self, token=None):
+        return self.public.get(f"/v/{token or self.qr_token()}")
+
+    def test_qr_printed_once_address_is_set(self):
+        page = self.client.get(f"/employees/{self.emp}/card").get_data(as_text=True)
+        self.assertNotIn('class="qr"', page)  # opened as localhost: a phone could not reach it
+        self.assertIn("without the QR code", page)
+        self.set_address(self.ADDRESS + "/")
+        page = self.client.get(f"/employees/{self.emp}/card").get_data(as_text=True)
+        self.assertIn('class="qr"', page)
+        self.assertIn(self.ADDRESS, page)
+        self.assertRegex(self.qr_token(), r"^[A-Za-z0-9_-]{16}$")
+        self.assertEqual(query("SELECT value FROM settings WHERE key='verify_base_url'")[0][0], self.ADDRESS)
+
+    def test_bad_address_rejected(self):
+        for bad in ("javascript:alert(1)", "http://x/<b>", "ftp://192.168.1.20", "http://user:pw@host"):
+            self.set_address(bad)
+            self.assertFalse(query("SELECT 1 FROM settings WHERE key='verify_base_url'"), bad)
+
+    def test_valid_pass_shows_only_card_details(self):
+        self.client.get(f"/employees/{self.emp}")  # creates the QR code
+        r = self.check()
+        page = r.get_data(as_text=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("✔ VALID", page)
+        self.assertIn("Test Worker", page)
+        self.assertEqual(r.headers["Cache-Control"], "no-store")
+        for private in (aadhaar(9), aadhaar(9)[-4:], "9876500000", "Hidden Street", "Father Name"):
+            self.assertNotIn(private, page)
+
+    def test_left_firm_or_expired_is_not_valid(self):
+        self.client.get(f"/employees/{self.emp}")
+        run("UPDATE employees SET status='Inactive' WHERE id=?", (self.emp,))
+        self.assertIn("NOT VALID", self.check().get_data(as_text=True))
+        run("UPDATE employees SET status='Active', gp_valid_upto='2020-01-01' WHERE id=?", (self.emp,))
+        page = self.check().get_data(as_text=True)
+        self.assertIn("NOT VALID", page)
+        self.assertIn("expired on 01-01-2020", page)
+        run("UPDATE employees SET gp_valid_upto=NULL WHERE id=?", (self.emp,))
+        run("UPDATE firms SET status='Inactive' WHERE id=?", (self.firm,))
+        self.assertIn("NOT VALID", self.check().get_data(as_text=True))
+
+    def test_police_verification_expired_is_a_warning(self):
+        self.client.get(f"/employees/{self.emp}")
+        run("UPDATE employees SET pv_valid_upto='2020-01-01' WHERE id=?", (self.emp,))
+        self.assertIn("VALID – WARNING", self.check().get_data(as_text=True))
+
+    def test_unknown_code_is_not_valid(self):
+        for token in ("A" * 16, "short", "../../etc"):
+            r = self.public.get(f"/v/{token}")
+            self.assertEqual(r.status_code, 404, token)
+        self.assertIn("NOT VALID", self.public.get("/v/" + "A" * 16).get_data(as_text=True))
+
+    def test_reissue_cancels_old_cards(self):
+        self.client.get(f"/employees/{self.emp}")
+        old = self.qr_token()
+        self.post(f"/employees/{self.emp}/reissue-qr")
+        new = self.qr_token()
+        self.assertNotEqual(old, new)
+        self.assertEqual(self.check(old).status_code, 404)
+        self.assertEqual(self.check(new).status_code, 200)
+        self.assertIn("Gate pass QR reissued", self.audit_actions())
+
+        self.add_user("clerk", "clerk-pass-1")
+        clerk = A.app.test_client()
+        self.login("clerk", "clerk-pass-1", clerk)
+        self.post(f"/employees/{self.emp}/reissue-qr", client=clerk)
+        self.assertEqual(self.qr_token(), new)  # only an administrator can reissue
+
+    def test_photo_is_public_only_through_the_qr_code(self):
+        os.makedirs(os.path.join(A.UPLOAD_DIR, "photos"), exist_ok=True)
+        with open(os.path.join(A.UPLOAD_DIR, "photos", "qrtest.jpg"), "wb") as f:
+            f.write(b"\xff\xd8\xff fake jpeg")
+        run("UPDATE employees SET photo_file='photos/qrtest.jpg' WHERE id=?", (self.emp,))
+        self.client.get(f"/employees/{self.emp}")
+        r = self.public.get(f"/v/{self.qr_token()}/photo")
+        self.assertEqual(r.status_code, 200)
+        r.close()
+        self.assertEqual(self.public.get("/files/photos/qrtest.jpg").status_code, 302)  # needs login
+
+    def test_user_who_must_change_password_can_still_check(self):
+        self.client.get(f"/employees/{self.emp}")
+        self.add_user("newbie", "newbie-pass-1", must_change=True)
+        newbie = A.app.test_client()
+        self.login("newbie", "newbie-pass-1", newbie)
+        self.assertEqual(newbie.get(f"/v/{self.qr_token()}").status_code, 200)
+
+    def test_confirm_dialogs_escape_names(self):
+        run("UPDATE employees SET name=? WHERE id=?", ("D'Souza \"Ram\"", self.emp))
+        page = self.client.get(f"/employees/{self.emp}").get_data(as_text=True)
+        self.assertIn("D&#39;Souza &#34;Ram&#34;", page)
+        self.assertNotIn("confirm('", page)
+
+
 class SmokeTest(Base):
     """Every page opens with the demo data loaded, for an administrator and a normal user."""
 
