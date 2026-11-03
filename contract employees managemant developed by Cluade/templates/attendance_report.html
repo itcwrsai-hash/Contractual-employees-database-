@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Attendance register{% endblock %}
+{% block content %}
+<div class="page-head no-print"><div><h1>Monthly attendance register</h1></div></div>
+<form class="filters no-print" method="get">
+  <div class="grow"><label>Firm</label>
+    <select name="firm_id"><option value="">-- Select firm --</option>
+      {% for f in firms %}<option value="{{ f.id }}" {{ 'selected' if firm_id == f.id }}>{{ f.name }}</option>{% endfor %}</select></div>
+  <div><label>Month</label><input type="month" name="month" value="{{ month }}"></div>
+  <div><button class="btn secondary">Show</button></div>
+  {% if firm %}
+  <div><a class="btn secondary" href="{{ url_for('attendance_report', firm_id=firm_id, month=month, export='csv') }}">Export to Excel (CSV)</a></div>
+  <div><button type="button" class="btn secondary" onclick="window.print()">Print</button></div>
+  {% endif %}
+</form>
+
+{% if firm %}
+<h2>{{ firm.name }} – {{ month_label }}</h2>
+<div class="table-wrap">
+<table class="register">
+  <tr>
+    <th class="name">Code</th><th class="name">Name</th>
+    {% for d in days %}<th class="{{ 'sun' if weekdays[loop.index0] == 6 }}">{{ d }}</th>{% endfor %}
+    <th>P</th><th>H</th><th>A</th><th>L</th><th>W</th><th>Days worked</th>
+  </tr>
+  {% for r in report %}
+  <tr>
+    <td class="name">{{ r.emp.emp_code }}</td>
+    <td class="name"><a href="{{ url_for('employee_view', emp_id=r.emp.id) }}">{{ r.emp.name }}</a></td>
+    {% for c in r.codes %}<td class="c-{{ c }}">{{ c }}</td>{% endfor %}
+    <td>{{ r.totals.P }}</td><td>{{ r.totals.H }}</td><td>{{ r.totals.A }}</td><td>{{ r.totals.L }}</td><td>{{ r.totals.W }}</td>
+    <td><strong>{{ r.worked | round(1) }}</strong></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="{{ days|length + 8 }}" class="empty">No employees.</td></tr>
+  {% endfor %}
+</table>
+</div>
+<p class="legend small muted">P = Present, H = Half day (counted as 0.5), A = Absent, L = Leave, W = Weekly off. Sundays are shaded.</p>
+{% elif not firm_id %}
+<p class="muted">Select a firm and month to see the register.</p>
+{% endif %}
+{% endblock %}

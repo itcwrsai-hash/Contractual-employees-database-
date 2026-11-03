@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ title }}</h1>
+    <p class="muted small">Choose a firm (or search), tick the employees, then click Print. Each employee prints on its own A4 page.</p></div>
+  {% if kind == 'id-cards' %}
+  <a class="btn secondary" href="{{ url_for('print_documents', kind='appointment-letters', firm_id=firm_id, status=status, q=q) }}">Switch to appointment letters</a>
+  {% else %}
+  <a class="btn secondary" href="{{ url_for('print_documents', kind='id-cards', firm_id=firm_id, status=status, q=q) }}">Switch to ID cards / gate passes</a>
+  {% endif %}
+</div>
+
+<form class="filters" method="get">
+  <div class="grow"><label>Firm</label>
+    <select name="firm_id" onchange="this.form.submit()"><option value="">-- Select firm --</option>
+      {% for f in firms %}<option value="{{ f.id }}" {{ 'selected' if firm_id == f.id }}>{{ f.name }}</option>{% endfor %}</select></div>
+  <div class="grow"><label>Search employee</label><input type="search" name="q" value="{{ q }}" placeholder="Name, code or father's name"></div>
+  <div><label>Status</label><select name="status">
+    {% for v, l in [('Active', 'Active'), ('Inactive', 'Inactive / Left'), ('', 'All')] %}
+    <option value="{{ v }}" {{ 'selected' if status == v }}>{{ l }}</option>{% endfor %}</select></div>
+  <div><button class="btn secondary">Show</button></div>
+</form>
+
+{% if rows %}
+<form method="get" action="{{ url_for(endpoint) }}" target="_blank" id="pickForm">
+  <div class="actions" style="margin-bottom:12px">
+    <label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:500">
+      <input type="checkbox" id="checkAll" checked> Select all ({{ rows|length }})</label>
+    <span class="muted small" id="pickCount"></span>
+    <button class="btn" style="margin-left:auto">Print selected</button>
+  </div>
+  <div class="table-wrap">
+  <table>
+    <tr><th style="width:36px"></th><th></th><th>Code</th><th>Name</th><th>Father's name</th><th>Firm</th><th>Designation</th><th>Status</th><th></th></tr>
+    {% for e in rows %}
+    <tr>
+      <td><input type="checkbox" name="ids" value="{{ e.id }}" class="pick" checked aria-label="Select {{ e.name }}"></td>
+      <td>{% if e.photo_file %}<img class="avatar" src="{{ url_for('files', rel_path=e.photo_file) }}" alt="">{% else %}<span class="avatar ph">No photo</span>{% endif %}</td>
+      <td>{{ e.emp_code }}</td>
+      <td><a href="{{ url_for('employee_view', emp_id=e.id) }}"><strong>{{ e.name }}</strong></a></td>
+      <td>{{ e.father_name or '-' }}</td>
+      <td class="small">{{ e.firm_name }}</td>
+      <td>{{ e.designation or '-' }}<div class="small muted">{{ e.skill_category or '' }}</div></td>
+      <td><span class="badge {{ 'ok' if e.status == 'Active' else 'grey' }}">{{ e.status }}</span></td>
+      <td style="text-align:right"><a class="btn secondary sm" href="{{ url_for(endpoint, emp_id=e.id) }}" target="_blank">Print</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+</form>
+{% elif firm_id or q %}
+<div class="card empty">No employees match.</div>
+{% else %}
+<div class="card empty">Select a firm above (or search for an employee) to list employees.</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const all = document.getElementById('checkAll');
+  if (!all) return;
+  const picks = [...document.querySelectorAll('.pick')];
+  const count = document.getElementById('pickCount');
+  const update = () => {
+    const n = picks.filter(p => p.checked).length;
+    count.textContent = n + ' selected';
+    all.checked = n === picks.length;
+    all.indeterminate = n > 0 && n < picks.length;
+  };
+  all.addEventListener('change', () => { picks.forEach(p => p.checked = all.checked); update(); });
+  picks.forEach(p => p.addEventListener('change', update));
+  document.getElementById('pickForm').addEventListener('submit', e => {
+    if (!picks.some(p => p.checked)) { e.preventDefault(); alert('Select at least one employee.'); }
+  });
+  update();
+})();
+</script>
+{% endblock %}

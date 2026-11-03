@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Wage sheet{% endblock %}
+{% block content %}
+<div class="page-head no-print">
+  <div><h1>Monthly wage sheet</h1><p class="muted small">Calculated from attendance and the minimum wage rates.</p></div>
+  <a class="btn secondary" href="{{ url_for('wage_settings') }}">Wage rates &amp; settings</a>
+</div>
+{% if no_rates %}
+<div class="flash error no-print">No wage rates are set yet. <a href="{{ url_for('wage_settings') }}">Enter the daily rates for Skilled / Semi-skilled / Unskilled</a> first.</div>
+{% endif %}
+<form class="filters no-print" method="get">
+  <div class="grow"><label>Firm</label>
+    <select name="firm_id"><option value="">-- Select firm --</option>
+      {% for f in firms %}<option value="{{ f.id }}" {{ 'selected' if firm_id == f.id }}>{{ f.name }}</option>{% endfor %}</select></div>
+  <div><label>Month</label><input type="month" name="month" value="{{ month }}"></div>
+  <div><button class="btn secondary">Show</button></div>
+  {% if firm %}
+  <div><a class="btn secondary" href="{{ url_for('wages', firm_id=firm_id, month=month, export='csv') }}">Export to Excel (CSV)</a></div>
+  <div><button type="button" class="btn secondary" onclick="window.print()">Print</button></div>
+  <div><a class="btn secondary" href="{{ url_for('payslip', firm_id=firm_id, month=month) }}" target="_blank">Print all wage slips (Form V)</a></div>
+  {% endif %}
+</form>
+
+{% if firm %}
+<h2>{{ firm.name }} – Wage sheet for {{ month_label }}</h2>
+<p class="small muted">
+  Paid days = Present + ½ Half day{% if s.pay_weekly_off %} + Weekly off{% endif %}{% if s.pay_leave %} + Leave{% endif %}.
+  EPF {{ '%g' % s.pf_rate }}% of basic{% if s.pf_ceiling %} (max ₹{{ s.pf_ceiling | int }}){% endif %} ·
+  ESI {{ '%g' % s.esi_rate }}% if gross ≤ ₹{{ s.esi_limit | int }}.
+</p>
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="firm_id" value="{{ firm_id }}">
+  <input type="hidden" name="month" value="{{ month }}">
+  <div class="table-wrap">
+  <table class="wages">
+    <tr>
+      <th>Code</th><th>Name</th><th>Skill</th>
+      <th class="num">Paid days</th><th class="num">Rate / day</th><th class="num">Basic wages</th>
+      <th class="num">Other allow.</th><th class="num">Overtime</th><th class="num">Gross</th>
+      <th class="num">EPF</th><th class="num">ESI</th><th class="num">Other ded.</th>
+      <th class="num">Net pay</th><th class="no-print">Remarks</th><th class="no-print"></th>
+    </tr>
+    {% for r in rows %}
+    {% set e = r.emp %}
+    <tr>
+      <td>{{ e.emp_code }}</td>
+      <td><a href="{{ url_for('employee_view', emp_id=e.id) }}">{{ e.name }}</a>
+        {% if r.missing_rate %}<div><span class="badge bad">No wage rate</span></div>{% endif %}
+        {% if r.below_min %}<div><span class="badge bad">Below minimum wage</span></div>{% endif %}</td>
+      <td class="small">{{ e.skill_category }}</td>
+      <td class="num">{{ r.paid_days | round(1) }}</td>
+      <td class="num">{{ '%.2f' % r.rate if r.rate else '-' }}{% if e.daily_wage %}<div class="small muted">agreed</div>{% endif %}</td>
+      <td class="num">{{ '%.2f' % r.gross }}</td>
+      <td class="num"><input class="amt no-print" type="number" step="0.01" min="0" name="allowance_{{ e.id }}" value="{{ r.allowance or '' }}"><span class="print-only">{{ '%.2f' % r.allowance }}</span></td>
+      <td class="num"><input class="amt no-print" type="number" step="0.01" min="0" name="overtime_{{ e.id }}" value="{{ r.overtime or '' }}"><span class="print-only">{{ '%.2f' % r.overtime }}</span></td>
+      <td class="num">{{ '%.2f' % r.earned }}</td>
+      <td class="num">{{ r.pf }}</td>
+      <td class="num">{{ r.esi }}</td>
+      <td class="num"><input class="amt no-print" type="number" step="0.01" min="0" name="deduction_{{ e.id }}" value="{{ r.deduction or '' }}"><span class="print-only">{{ '%.2f' % r.deduction }}</span></td>
+      <td class="num"><strong>{{ '%.2f' % r.net }}</strong></td>
+      <td class="no-print"><input type="text" name="remarks_{{ e.id }}" value="{{ r.remarks or '' }}" placeholder="e.g. advance"></td>
+      <td class="no-print"><a class="btn secondary sm" href="{{ url_for('payslip', emp_id=e.id, month=month) }}" target="_blank">Wage slip</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="15" class="empty">No employees for this month.</td></tr>
+    {% endfor %}
+    {% if rows %}
+    <tr class="total">
+      <td></td><td>Total ({{ rows|length }})</td><td></td>
+      <td class="num">{{ totals.paid_days | round(1) }}</td><td></td>
+      <td class="num">{{ '%.2f' % totals.gross }}</td><td class="num">{{ '%.2f' % totals.allowance }}</td>
+      <td class="num">{{ '%.2f' % totals.overtime }}</td><td class="num">{{ '%.2f' % totals.earned }}</td><td class="num">{{ totals.pf | int }}</td>
+      <td class="num">{{ totals.esi | int }}</td><td class="num">{{ '%.2f' % totals.deduction }}</td>
+      <td class="num">{{ '%.2f' % totals.net }}</td><td class="no-print"></td><td class="no-print"></td>
+    </tr>
+    {% endif %}
+  </table>
+  </div>
+  {% if rows %}
+  <div class="grid grid-2" style="margin-top:16px">
+    <div class="card">
+      <h2>Contractor's statutory liability ({{ month_label }})</h2>
+      <table>
+        <tr><th></th><th class="num">Employee share</th><th class="num">Employer share</th><th class="num">Total to deposit</th></tr>
+        <tr><td>EPF</td><td class="num">{{ totals.pf | int }}</td><td class="num">{{ totals.pf_er | int }}</td><td class="num"><strong>{{ (totals.pf + totals.pf_er) | int }}</strong></td></tr>
+        <tr><td>ESI</td><td class="num">{{ totals.esi | int }}</td><td class="num">{{ totals.esi_er | int }}</td><td class="num"><strong>{{ (totals.esi + totals.esi_er) | int }}</strong></td></tr>
+      </table>
+      <p class="small muted">Check these against the contractor's EPF ECR and ESI challans for the month.</p>
+    </div>
+    <div class="card no-print">
+      <h2>Adjustments</h2>
+      <p class="small muted">Type overtime wages, any arrears or other allowance, and advances or other deductions, in the boxes above and click Save. Wages are recalculated automatically when attendance or rates change.</p>
+      <button class="btn">Save wage sheet</button>
+    </div>
+  </div>
+  <div class="print-only sign-row"><span>Prepared by</span><span>Contractor's signature</span><span>Verified by (Railway)</span></div>
+  {% endif %}
+</form>
+{% elif not firm_id %}
+<p class="muted">Select a firm and month to prepare the wage sheet.</p>
+{% endif %}
+{% endblock %}

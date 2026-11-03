@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Employees{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Contractual employees</h1><p class="muted small">{{ employees|length }} employee(s) match</p></div>
+  <div class="actions">
+    <a class="btn secondary" href="{{ url_for('employees_export', **args) }}">Export to Excel (CSV)</a>
+    <a class="btn" href="{{ url_for('employee_form') }}">+ Add employee</a>
+  </div>
+</div>
+<form class="filters" method="get">
+  <div class="grow"><label>Search</label><input type="search" name="q" value="{{ args.q or '' }}" placeholder="Name, father name, code, mobile, Aadhaar"></div>
+  <div><label>Firm</label><select name="firm_id"><option value="">All firms</option>
+    {% for f in firms %}<option value="{{ f.id }}" {{ 'selected' if args.firm_id == f.id|string }}>{{ f.name }}</option>{% endfor %}</select></div>
+  <div><label>Skill category</label><select name="skill"><option value="">All</option>
+    {% for s in SKILL_CATEGORIES %}<option {{ 'selected' if args.skill == s }}>{{ s }}</option>{% endfor %}</select></div>
+  <div><label>Police verification</label><select name="pv">
+    {% for v, l in [('', 'All'), ('valid', 'Valid'), ('expiring', 'Expiring in 30 days'), ('expired', 'Expired'), ('pending', 'Not done')] %}
+    <option value="{{ v }}" {{ 'selected' if (args.pv or '') == v }}>{{ l }}</option>{% endfor %}</select></div>
+  <div><label>Status</label><select name="status">
+    {% for v, l in [('Active', 'Active'), ('Inactive', 'Inactive / Left'), ('', 'All')] %}
+    <option value="{{ v }}" {{ 'selected' if args.status == v }}>{{ l }}</option>{% endfor %}</select></div>
+  <div><button class="btn secondary">Filter</button></div>
+</form>
+<div class="table-wrap">
+<table>
+  <tr><th></th><th>Code</th><th>Name</th><th>Father's name</th><th>Firm</th><th>Designation</th><th>Skill</th><th>Police verification</th><th>Status</th></tr>
+  {% set show_firm = true %}
+  {% for e in employees %}
+  {% include "_employee_row.html" %}
+  {% else %}
+  <tr><td colspan="9" class="empty">No employees found.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

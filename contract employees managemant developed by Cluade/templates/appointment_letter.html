@@ -1,0 +1,38 @@
+{% extends "print_base.html" %}
+{% macro d3(iso) %}{% if iso %}{{ iso[8:10] }} / {{ iso[5:7] }} / {{ iso[0:4] }}{% else %}_____ / _____ / _________{% endif %}{% endmacro %}
+{% block title %}Appointment Letter{% endblock %}
+{% block count %}{% if letters|length > 1 %} – {{ letters|length }} employees{% endif %}{% endblock %}
+{% block pages %}
+{% for L in letters %}{% set e = L.e %}
+<div class="page">
+  <div class="letterhead">
+    <div class="firm">{{ e.firm_name }}</div>
+    <div class="addr">{{ e.firm_address or '' }}{% if e.firm_pincode %} – {{ e.firm_pincode }}{% endif %}{% if e.firm_mobile %} · Mob: {{ e.firm_mobile }}{% endif %}{% if e.firm_email %} · {{ e.firm_email }}{% endif %}</div>
+  </div>
+  <div class="doc-title">Letter of Appointment to Employee (नियुक्ति पत्र प्रारूप)</div>
+  <div class="doc-note">(As per Section 6 of Chapter-III of Occupational Safety, Health and Working Conditions Code, 2020)</div>
+  <table class="form-table">
+    <tr><td>(i) Name of employee / कर्मचारी का नाम :</td><td>{{ e.name }}</td></tr>
+    <tr><td>(ii) Date of birth / जन्म तिथि :</td><td>{{ d3(e.dob) }}</td></tr>
+    <tr><td>(iii) Father's / Mother's name / पिता या माता का नाम :</td><td>{{ e.father_name or '' }}</td></tr>
+    <tr><td>(iv) Aadhaar number / आधार संख्या (after obtaining consent) :</td><td>{{ e.aadhaar_no | fmt_aadhaar }}</td></tr>
+    <tr><td>(v) Labour Identification Number (LIN) of establishment :</td><td>{{ e.lin_no or '' }}</td></tr>
+    <tr><td>(vi) Universal Account Number (UAN) and / or Insurance Number :</td><td>{% if e.uan_no %}UAN: {{ e.uan_no }}{% endif %}{% if e.uan_no and e.esic_no %}<br>{% endif %}{% if e.esic_no %}ESIC IP No.: {{ e.esic_no }}{% endif %}</td></tr>
+    <tr><td>(vii) Designation / पदनाम :</td><td>{{ e.designation or '' }}</td></tr>
+    <tr><td>(viii) Type of Employment (Regular/Fixed-term/Contractual) :</td><td>Contractual</td></tr>
+    <tr><td>(ix) Category of skill / कुशलता श्रेणी (Skilled/Unskilled) :</td><td>{{ e.skill_category or '' }}</td></tr>
+    <tr><td>(x) Date of joining / कार्यभार ग्रहण तिथि :</td><td>{{ d3(e.date_of_joining) }}</td></tr>
+    <tr><td>(xi) Wages / Basic / Pay and Dearness Allowance (DA) :</td><td>{{ L.wages }}</td></tr>
+    <tr><td>(xii) Other allowance including accommodation (if applicable) :</td><td>{{ L.allowance }}</td></tr>
+    <tr><td>(xiii) Applicability of social security (EPFO &amp; ESIC) benefits :</td><td>{% for line in L.social %}{{ line }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
+    <tr><td>(xiv) Broad Nature of duties to be performed / कार्य की प्रकृति :</td><td>{{ L.duties }}</td></tr>
+    <tr><td>(xv) Benefits under Chapter VI (Maternity Benefit) (For Women) :</td><td>{{ L.maternity }}</td></tr>
+    <tr><td>(xvi) Any other information / अन्य कोई जानकारी :</td><td>{{ L.other }}</td></tr>
+  </table>
+  <div class="sign-block">
+    <div>Place: Raipur<br>Date: {{ L.letter_date | dmy }}</div>
+    <div class="sig"><span>Signature / Digital Signature of Contractor</span></div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Search{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Search results</h1>
+    <p class="muted small">{% if q %}{{ employees|length }} employee(s) and {{ firms|length }} firm(s) match “{{ q }}”{% else %}Type in the search box at the top{% endif %}</p></div>
+</div>
+
+{% if not q %}
+<div class="card empty">Search by employee name, father's name, employee code, Aadhaar no., mobile, UAN / ESIC no., gate pass no.,
+  firm name, firm ID, LOA / work order no., GST, PAN or LIN.</div>
+{% else %}
+
+<h2>Firms ({{ firms|length }})</h2>
+{% if firms %}
+<div class="table-wrap" style="margin-bottom:22px">
+<table>
+  <tr><th>Firm ID</th><th>Firm name</th><th>Owner</th><th>LOA / Work order</th><th>Mobile</th><th>Employees</th><th>Status</th></tr>
+  {% for f in firms %}
+  <tr>
+    <td>{{ f.id }}</td>
+    <td><a href="{{ url_for('firm_view', firm_id=f.id) }}"><strong>{{ f.name }}</strong></a></td>
+    <td>{{ f.owner_name or '-' }}</td>
+    <td class="small">{{ f.work_order_no or '-' }}</td>
+    <td>{{ f.mobile or '-' }}</td>
+    <td>{{ f.emp_count }}</td>
+    <td><span class="badge {{ 'ok' if f.status == 'Active' else 'grey' }}">{{ f.status }}</span></td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}<p class="muted" style="margin-bottom:22px">No firm matches.</p>{% endif %}
+
+<h2>Employees ({{ employees|length }})</h2>
+{% if employees %}
+<div class="table-wrap">
+<table>
+  <tr><th></th><th>Code</th><th>Name</th><th>Father's name</th><th>Firm</th><th>Designation</th><th>Aadhaar</th><th>Mobile</th><th>Status</th></tr>
+  {% for e in employees %}
+  <tr>
+    <td>{% if e.photo_file %}<img class="avatar" src="{{ url_for('files', rel_path=e.photo_file) }}" alt="">{% else %}<span class="avatar ph">No photo</span>{% endif %}</td>
+    <td>{{ e.emp_code }}</td>
+    <td><a href="{{ url_for('employee_view', emp_id=e.id) }}"><strong>{{ e.name }}</strong></a></td>
+    <td>{{ e.father_name or '-' }}</td>
+    <td class="small"><a href="{{ url_for('firm_view', firm_id=e.firm_id) }}">{{ e.firm_name }}</a></td>
+    <td>{{ e.designation or '-' }}<div class="small muted">{{ e.skill_category or '' }}</div></td>
+    <td>{{ e.aadhaar_no | mask_aadhaar }}</td>
+    <td>{{ e.mobile or '-' }}</td>
+    <td><span class="badge {{ 'ok' if e.status == 'Active' else 'grey' }}">{{ e.status }}</span></td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% else %}<p class="muted">No employee matches.</p>{% endif %}
+{% endif %}
+{% endblock %}

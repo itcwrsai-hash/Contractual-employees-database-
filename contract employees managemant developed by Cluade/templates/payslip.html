@@ -1,0 +1,47 @@
+{% extends "print_base.html" %}
+{% block title %}Wage Slip (Form V) – {{ month_label }}{% endblock %}
+{% block body_class %}form-v{% endblock %}
+{% block count %}{% if rows|length > 1 %} – {{ rows|length }} employees{% endif %}{% endblock %}
+{% block pages %}
+{% for r in rows %}{% set e = r.emp %}
+<div class="page">
+  <div class="doc-title">FORM V (See rule 52) - Wage Slip (वेतन पर्ची)</div>
+  <div class="head-fields">
+    <div>Date of Issue / जारी तिथि: <span class="fill">{{ today | dmy }}</span></div>
+    <div>Name of the Establishment / फर्म का नाम: <span class="fill wide">{{ firm.name }}</span></div>
+    <div>Address / पता: <span class="fill wide">{{ firm.address or '' }}{% if firm.pincode %} – {{ firm.pincode }}{% endif %}</span></div>
+    <div>Period / अवधि: <span class="fill">{{ month_label }}</span></div>
+  </div>
+  <table class="form-table">
+    <tr><td>1. Name of employee / कर्मचारी का नाम</td><td>{{ e.name }} ({{ e.emp_code }})</td></tr>
+    <tr><td>2. Father's / Mother's / Spouse Name</td><td>{{ e.father_name or '' }}</td></tr>
+    <tr><td>3. Designation / पदनाम</td><td>{{ e.designation or '' }}{% if e.skill_category %} ({{ e.skill_category }}){% endif %}</td></tr>
+    <tr><td>4. UAN (Universal Account Number)</td><td>{{ e.uan_no or '' }}</td></tr>
+    <tr><td>5. Bank Account Number / बैंक खाता संख्या</td><td>{% if e.bank_account %}{{ e.bank_account }}{% if e.ifsc %} (IFSC {{ e.ifsc }}){% endif %}{% endif %}</td></tr>
+    <tr><td>6. Wage period / वेतन काल</td><td>{{ period | dmy }} to {{ period_end | dmy }}</td></tr>
+    <tr><td>7. Rate of wages payable / देय मजदूरी दर:
+        <span class="sub">a) Basic:</span><span class="sub">b) DA:</span><span class="sub">c) Allowance:</span></td>
+      <td><br>
+        <span class="amt">{% if r.basic_rate is not none %}₹ {{ '%.2f' % r.basic_rate }} per day{% if e.daily_wage %} (consolidated){% endif %}{% else %}–{% endif %}</span>
+        <span class="amt">{% if r.da_rate %}₹ {{ '%.2f' % r.da_rate }} per day{% else %}–{% endif %}</span>
+        <span class="amt">{% if r.allowance %}₹ {{ '%.2f' % r.allowance }} (for the month){% else %}–{% endif %}</span></td></tr>
+    <tr><td>8. Total attendance / unit of work done</td>
+      <td>{{ r.paid_days | round(1) }} paid days <span style="font-weight:400">(Present {{ r.totals.P }}, Half day {{ r.totals.H }}, Weekly off {{ r.totals.W }}, Leave {{ r.totals.L }}, Absent {{ r.totals.A }})</span></td></tr>
+    <tr><td>9. Overtime wages / ओवरटाइम भुगतान</td><td>{% if r.overtime %}₹ {{ '%.2f' % r.overtime }}{% else %}Nil{% endif %}</td></tr>
+    <tr><td>10. Gross wages payable / कुल देय राशि</td><td>Rs. {{ '%.2f' % r.earned }}</td></tr>
+    <tr><td>11. Total deductions / कुल कटौतियां:
+        <span class="sub">a) PF:</span><span class="sub">b) ESIC:</span><span class="sub">c) Others:</span></td>
+      <td>Rs. {{ '%.2f' % r.total_deduction }}
+        <span class="amt">₹ {{ '%.2f' % r.pf }}</span>
+        <span class="amt">₹ {{ '%.2f' % r.esi }}</span>
+        <span class="amt">₹ {{ '%.2f' % r.deduction }}{% if r.remarks %} <span style="font-weight:400">({{ r.remarks }})</span>{% endif %}</span></td></tr>
+    <tr><td>12. Net wages paid / शुद्ध भुगतान राशि</td><td>Rs. {{ '%.2f' % r.net }}</td></tr>
+  </table>
+  {% if r.below_min %}<p style="color:#b42318;font-weight:600">Note: agreed wage is below the notified minimum wage.</p>{% endif %}
+  <div class="sign-block">
+    <div></div>
+    <div class="sig"><span>Employer / Pay-in-charge Signature</span></div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

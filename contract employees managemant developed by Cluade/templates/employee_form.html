@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit employee' if editing else 'Add employee' }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ 'Edit employee – ' ~ emp.name if editing else 'Register new contractual employee' }}</h1></div>
+{% if not firms %}
+<div class="flash error">No active firm exists yet. <a href="{{ url_for('firm_form') }}">Add a firm</a> first.</div>
+{% endif %}
+<form method="post" enctype="multipart/form-data" id="empForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="photo_data" id="photo_data">
+
+  <fieldset>
+    <legend>Photo</legend>
+    <div class="photo-box" style="margin-bottom:14px">
+      <div class="photo-preview" id="preview">
+        {% if emp.photo_file %}<img src="{{ url_for('files', rel_path=emp.photo_file) }}" alt="Current photo">{% else %}No photo{% endif %}
+      </div>
+      <div class="camera-controls">
+        <div>
+          <label>Upload photo</label>
+          <input type="file" name="photo_file" id="photo_file" accept="image/*">
+          <div class="hint">On a mobile phone this can also open the camera.</div>
+        </div>
+        <div>
+          <label>Or capture with webcam</label>
+          <button type="button" class="btn secondary" id="camStart">Start camera</button>
+          <button type="button" class="btn" id="camSnap" hidden>Capture photo</button>
+          <button type="button" class="btn secondary" id="camStop" hidden>Cancel</button>
+          <div class="hint" id="camMsg"></div>
+        </div>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Personal details</legend>
+    <div class="row">
+      <div><label>Employee name <span class="req">*</span></label><input type="text" name="name" value="{{ emp.name or '' }}" required></div>
+      <div><label>Father's name <span class="req">*</span></label><input type="text" name="father_name" value="{{ emp.father_name or '' }}" required></div>
+      <div><label>Date of birth</label><input type="date" name="dob" value="{{ emp.dob or '' }}" max="{{ today }}"></div>
+      <div><label>Gender</label>
+        <select name="gender"><option value="">-</option>{% for g in ['Male', 'Female', 'Other'] %}<option {{ 'selected' if emp.gender == g }}>{{ g }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="row">
+      <div><label>Mobile no.</label><input type="tel" name="mobile" value="{{ emp.mobile or '' }}" pattern="[6-9][0-9]{9}" maxlength="10" title="10-digit mobile number"></div>
+      <div><label>Blood group</label>
+        <select name="blood_group"><option value="">-</option>{% for b in BLOOD_GROUPS %}<option {{ 'selected' if emp.blood_group == b }}>{{ b }}</option>{% endfor %}</select></div>
+      <div><label>PIN code</label><input type="text" name="pincode" value="{{ emp.pincode or '' }}" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" title="6-digit PIN code"></div>
+    </div>
+    <div class="row">
+      <div><label>Present address</label><textarea name="address">{{ emp.address or '' }}</textarea></div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Aadhaar</legend>
+    <div class="row">
+      <div><label>Aadhaar no. <span class="req">*</span></label>
+        <input type="text" name="aadhaar_no" value="{{ emp.aadhaar_no | fmt_aadhaar if emp.aadhaar_no else '' }}" required inputmode="numeric" maxlength="14" placeholder="1234 5678 9012" id="aadhaar">
+        <div class="hint">12-digit number; it is checked for typing mistakes.</div></div>
+      <div><label>Upload Aadhaar card (image or PDF)</label><input type="file" name="aadhaar_file" accept="image/*,.pdf">
+        {% if emp.aadhaar_file %}<div class="hint">Already uploaded – <a href="{{ url_for('files', rel_path=emp.aadhaar_file) }}" target="_blank">view</a>. Choose a file only to replace it.</div>{% endif %}</div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Employment</legend>
+    <div class="row">
+      <div><label>Firm (contractor) <span class="req">*</span></label>
+        <select name="firm_id" required><option value="">-- Select firm --</option>
+          {% for f in firms %}<option value="{{ f.id }}" {{ 'selected' if emp.firm_id|string == f.id|string }}>{{ f.name }}</option>{% endfor %}</select></div>
+      <div><label>Employee code</label><input type="text" name="emp_code" value="{{ emp.emp_code or '' }}" placeholder="Auto (CE00001) if left blank"></div>
+      <div><label>Designation / Trade</label><input type="text" name="designation" value="{{ emp.designation or '' }}" placeholder="e.g. Fitter, Welder, Helper" list="trades">
+        <datalist id="trades">{% for t in ['Fitter', 'Welder', 'Electrician', 'Machinist', 'Painter', 'Carpenter', 'Helper', 'Khalasi', 'Sweeper', 'Driver', 'Supervisor'] %}<option>{{ t }}</option>{% endfor %}</datalist></div>
+    </div>
+    <div class="row">
+      <div><label>Skill category <span class="req">*</span></label>
+        <div class="radio-group">{% for s in SKILL_CATEGORIES %}
+          <label><input type="radio" name="skill_category" value="{{ s }}" {{ 'checked' if emp.skill_category == s }} required> {{ s }}</label>{% endfor %}</div></div>
+      <div><label>Date of joining</label><input type="date" name="date_of_joining" value="{{ emp.date_of_joining or '' }}"></div>
+      <div><label>Status</label>
+        <select name="status">{% for s in ['Active', 'Inactive'] %}<option {{ 'selected' if emp.status == s }}>{{ s }}</option>{% endfor %}</select></div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Wages, bank &amp; PF / ESI</legend>
+    <div class="row">
+      <div><label>Agreed daily wage (₹)</label><input type="number" step="0.01" min="0" name="daily_wage" value="{{ emp.daily_wage or '' }}" placeholder="Blank = minimum wage for skill">
+        <div class="hint">Fill only if the contractor pays more than the minimum wage.</div></div>
+      <div><label>UAN (EPF)</label><input type="text" name="uan_no" value="{{ emp.uan_no or '' }}" inputmode="numeric" maxlength="12"></div>
+      <div><label>ESIC IP no.</label><input type="text" name="esic_no" value="{{ emp.esic_no or '' }}" inputmode="numeric" maxlength="17"></div>
+    </div>
+    <div class="row">
+      <div><label>Bank name</label><input type="text" name="bank_name" value="{{ emp.bank_name or '' }}"></div>
+      <div><label>Account no.</label><input type="text" name="bank_account" value="{{ emp.bank_account or '' }}" inputmode="numeric" maxlength="18"></div>
+      <div><label>IFSC</label><input type="text" name="ifsc" value="{{ emp.ifsc or '' }}" maxlength="11" style="text-transform:uppercase"></div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Police verification</legend>
+    <div class="row">
+      <div><label>Police verification completed?</label>
+        <div class="radio-group">
+          <label><input type="radio" name="pv_done" value="1" {{ 'checked' if emp.pv_done }}> Yes</label>
+          <label><input type="radio" name="pv_done" value="0" {{ 'checked' if not emp.pv_done }}> No</label>
+        </div></div>
+    </div>
+    <div class="row" id="pvFields">
+      <div><label>Certificate / Reference no.</label><input type="text" name="pv_cert_no" value="{{ emp.pv_cert_no or '' }}"></div>
+      <div><label>Valid upto <span class="req">*</span></label><input type="date" name="pv_valid_upto" id="pv_valid_upto" value="{{ emp.pv_valid_upto or '' }}"></div>
+      <div><label>Upload certificate</label><input type="file" name="pv_file" accept="image/*,.pdf">
+        {% if emp.pv_file %}<div class="hint">Already uploaded – <a href="{{ url_for('files', rel_path=emp.pv_file) }}" target="_blank">view</a></div>{% endif %}</div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Identity card cum gate pass</legend>
+    <div class="row">
+      <div><label>Gate pass no.</label><input type="text" name="gate_pass_no" value="{{ emp.gate_pass_no or '' }}" placeholder="Blank = employee code"></div>
+      <div><label>Valid from</label><input type="date" name="gp_valid_from" value="{{ emp.gp_valid_from or '' }}">
+        <div class="hint">Blank = date of joining / contract start.</div></div>
+      <div><label>Valid upto</label><input type="date" name="gp_valid_upto" value="{{ emp.gp_valid_upto or '' }}">
+        <div class="hint">Blank = firm's contract end date.</div></div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Appointment letter</legend>
+    <div class="row">
+      <div><label>Letter date</label><input type="date" name="appt_date" value="{{ emp.appt_date or '' }}">
+        <div class="hint">Blank = date of joining.</div></div>
+      <div><label>Other allowance incl. accommodation</label><input type="text" name="appt_other_allowance" value="{{ emp.appt_other_allowance or '' }}" placeholder="Blank = Nil"></div>
+    </div>
+    <div class="row">
+      <div><label>Broad nature of duties</label><textarea name="appt_duties" placeholder="Blank = firm's nature of work">{{ emp.appt_duties or '' }}</textarea></div>
+      <div><label>Any other information</label><textarea name="appt_other_info">{{ emp.appt_other_info or '' }}</textarea></div>
+    </div>
+    <p class="hint">Name, DOB, Aadhaar, UAN/ESIC, designation, skill, joining date, wages and the firm's LIN are filled in automatically.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Qualification</legend>
+    <div class="row">
+      <div><label>Qualification</label><input type="text" name="qualification" value="{{ emp.qualification or '' }}" list="quals" placeholder="e.g. 10th, ITI (Fitter)">
+        <datalist id="quals">{% for q in ['Below 8th', '8th', '10th', '12th', 'ITI', 'Diploma', 'Graduate', 'Post Graduate'] %}<option>{{ q }}</option>{% endfor %}</datalist></div>
+      <div style="grid-column: span 2"><label>Upload qualification documents (you can select several)</label>
+        <input type="file" name="qual_files" multiple accept="image/*,.pdf">
+        {% if editing %}<div class="hint">Existing documents are listed on the employee's profile page.</div>{% endif %}</div>
+    </div>
+  </fieldset>
+
+  <div class="sticky-save">
+    <a class="btn secondary" href="{{ url_for('employee_view', emp_id=emp.id) if editing else url_for('employees') }}">Cancel</a>
+    <button class="btn">Save employee</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='employee_form.js') }}"></script>
+{% endblock %}

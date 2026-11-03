@@ -1,0 +1,16 @@
+<tr>
+  <td>{% if e.photo_file %}<img class="avatar" src="{{ url_for('files', rel_path=e.photo_file) }}" alt="">{% else %}<span class="avatar ph">No photo</span>{% endif %}</td>
+  <td>{{ e.emp_code }}</td>
+  <td><a href="{{ url_for('employee_view', emp_id=e.id) }}"><strong>{{ e.name }}</strong></a>{% if e.mobile %}<div class="small muted">{{ e.mobile }}</div>{% endif %}</td>
+  <td>{{ e.father_name or '-' }}</td>
+  {% if show_firm %}<td class="small">{{ e.firm_name }}</td>{% endif %}
+  <td>{{ e.designation or '-' }}</td>
+  <td>{{ e.skill_category or '-' }}</td>
+  <td>{% set st = pv_state(e) %}
+    {% if st == 'pending' %}<span class="badge warn">Pending</span>
+    {% elif st == 'expired' %}<span class="badge bad">Expired {{ e.pv_valid_upto | dmy }}</span>
+    {% elif st == 'expiring' %}<span class="badge warn">Valid till {{ e.pv_valid_upto | dmy }}</span>
+    {% else %}<span class="badge ok">Valid{% if e.pv_valid_upto %} till {{ e.pv_valid_upto | dmy }}{% endif %}</span>{% endif %}
+  </td>
+  <td><span class="badge {{ 'ok' if e.status == 'Active' else 'grey' }}">{{ e.status }}</span></td>
+</tr>

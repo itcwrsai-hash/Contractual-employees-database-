@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+{% set present = att_today.P + att_today.H %}
+{% set pct = (present * 100 / stats.employees) | round | int if stats.employees else 0 %}
+<div class="page-head">
+  <div><h1>Dashboard</h1><p class="muted small">Workshop-wide position of contractual labour · {{ WORKSHOP }}</p></div>
+  <form class="actions" method="get" style="align-items:flex-end">
+    <div><label>Attendance date</label><input type="date" name="date" value="{{ att_date }}" max="{{ today }}" onchange="this.form.submit()"></div>
+    <a class="btn" href="{{ url_for('attendance', date=att_date) }}">{{ icon('calendar-check', 16) }}Mark attendance</a>
+    <a class="btn secondary" href="{{ url_for('employee_form') }}">{{ icon('plus', 16) }}Add employee</a>
+  </form>
+</div>
+
+<div class="stats">
+  <a class="stat" href="{{ url_for('firms') }}"><div class="stat-icon">{{ icon('building', 20) }}</div><div class="num">{{ stats.firms }}</div><div class="lbl">Firms working in workshop</div></a>
+  <a class="stat" href="{{ url_for('employees') }}"><div class="stat-icon violet">{{ icon('users', 20) }}</div><div class="num">{{ stats.employees }}</div><div class="lbl">Total contractual employees</div></a>
+  <div class="stat"><div class="stat-icon green">{{ icon('user-check', 20) }}</div><div class="num">{{ present }} <span class="pct">{{ pct }}%</span></div><div class="lbl">Present on {{ att_date | dmy }}{% if att_today.H %} (incl. {{ att_today.H }} half day){% endif %}</div></div>
+  <div class="stat"><div class="stat-icon orange">{{ icon('user-x', 20) }}</div><div class="num">{{ att_today.A }}</div><div class="lbl">Absent on {{ att_date | dmy }}</div></div>
+  <div class="stat"><div class="stat-icon teal">{{ icon('calendar', 20) }}</div><div class="num">{{ att_today.L + att_today.W }}</div><div class="lbl">On leave / weekly off</div></div>
+  <a class="stat {{ 'warn' if att_today.unmarked }}" href="{{ url_for('attendance', date=att_date) }}"><div class="stat-icon amber">{{ icon('clock', 20) }}</div><div class="num">{{ att_today.unmarked }}</div><div class="lbl">Attendance not marked</div></a>
+</div>
+
+{# ---------- Chart 1: firm-wise attendance on the selected date ---------- #}
+{% set max_active = firm_chart | map(attribute='active') | max if firm_chart else 0 %}
+<div class="card">
+  <div class="chart-head">
+    <h2>Firm-wise attendance – {{ att_date | dmy }}</h2>
+    <div class="legend-row">
+      <span><i class="sw" style="background:var(--s-present)"></i>Present</span>
+      <span><i class="sw" style="background:var(--s-absent)"></i>Absent</span>
+      <span><i class="sw" style="background:var(--s-half)"></i>Half day</span>
+      <span><i class="sw" style="background:var(--s-leave)"></i>Leave / weekly off</span>
+      <span><i class="sw sw-empty"></i>Not marked</span>
+    </div>
+  </div>
+  {% if firm_chart and max_active %}
+  <div class="hbars">
+    {% for f in firm_chart %}
+    <div class="hbar-row">
+      <a class="hbar-label" href="{{ url_for('attendance', firm_id=f.id, date=att_date) }}" title="{{ f.name }}">{{ f.name }}</a>
+      <div class="hbar-track">
+        {% for key, cls, label in [('p','present','Present'), ('a','absent','Absent'), ('h','half','Half day'), ('lw','leave','Leave / weekly off'), ('unmarked','empty','Not marked')] %}
+          {% if f[key] %}<span class="seg seg-{{ cls }}" style="width:{{ f[key] * 100 / max_active }}%" tabindex="0"
+            data-title="{{ f.name }}" data-tip="{{ label }}: {{ f[key] }} of {{ f.active }}"></span>{% endif %}
+        {% endfor %}
+      </div>
+      <div class="hbar-value"><strong>{{ f.p + f.h }}</strong> / {{ f.active }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="small muted">Bar length = active strength of the firm. Number = present (incl. half day) / strength. Click a firm to mark its attendance.</p>
+  <details class="table-view"><summary>Show as table</summary>
+    <table>
+      <tr><th>Firm</th><th class="num">Strength</th><th class="num">Present</th><th class="num">Half day</th><th class="num">Absent</th><th class="num">Leave / off</th><th class="num">Not marked</th></tr>
+      {% for f in firm_chart %}<tr><td>{{ f.name }}</td><td class="num">{{ f.active }}</td><td class="num">{{ f.p }}</td><td class="num">{{ f.h }}</td><td class="num">{{ f.a }}</td><td class="num">{{ f.lw }}</td><td class="num">{{ f.unmarked }}</td></tr>{% endfor %}
+      <tr class="total"><td>Total</td><td class="num">{{ stats.employees }}</td><td class="num">{{ att_today.P }}</td><td class="num">{{ att_today.H }}</td><td class="num">{{ att_today.A }}</td><td class="num">{{ att_today.L + att_today.W }}</td><td class="num">{{ att_today.unmarked }}</td></tr>
+    </table>
+  </details>
+  {% else %}
+  <p class="empty">No active employees yet. <a href="{{ url_for('firm_form') }}">Add a firm</a> and register its employees.</p>
+  {% endif %}
+</div>
+
+<div class="grid grid-2">
+  {# ---------- Chart 2: strength per firm by skill ---------- #}
+  <div class="card">
+    <div class="chart-head">
+      <h2>Employees per firm by skill</h2>
+      <div class="legend-row">
+        <span><i class="sw" style="background:var(--s-1)"></i>Skilled ({{ skills['Skilled'] }})</span>
+        <span><i class="sw" style="background:var(--s-2)"></i>Semi-skilled ({{ skills['Semi-skilled'] }})</span>
+        <span><i class="sw" style="background:var(--s-3)"></i>Unskilled ({{ skills['Unskilled'] }})</span>
+      </div>
+    </div>
+    {% if firm_chart and max_active %}
+    <div class="hbars">
+      {% for f in firm_chart %}
+      <div class="hbar-row">
+        <a class="hbar-label" href="{{ url_for('firm_view', firm_id=f.id) }}" title="{{ f.name }}">{{ f.name }}</a>
+        <div class="hbar-track">
+          {% for key, n, label in [('skilled', 1, 'Skilled'), ('semi', 2, 'Semi-skilled'), ('unskilled', 3, 'Unskilled')] %}
+            {% if f[key] %}<span class="seg" style="width:{{ f[key] * 100 / max_active }}%;background:var(--s-{{ n }})" tabindex="0"
+              data-title="{{ f.name }}" data-tip="{{ label }}: {{ f[key] }}"></span>{% endif %}
+          {% endfor %}
+        </div>
+        <div class="hbar-value"><strong>{{ f.active }}</strong></div>
+      </div>
+      {% endfor %}
+    </div>
+    <details class="table-view"><summary>Show as table</summary>
+      <table>
+        <tr><th>Firm</th><th class="num">Skilled</th><th class="num">Semi-skilled</th><th class="num">Unskilled</th><th class="num">Total</th></tr>
+        {% for f in firm_chart %}<tr><td>{{ f.name }}</td><td class="num">{{ f.skilled }}</td><td class="num">{{ f.semi }}</td><td class="num">{{ f.unskilled }}</td><td class="num">{{ f.active }}</td></tr>{% endfor %}
+        <tr class="total"><td>Total</td><td class="num">{{ skills['Skilled'] }}</td><td class="num">{{ skills['Semi-skilled'] }}</td><td class="num">{{ skills['Unskilled'] }}</td><td class="num">{{ stats.employees }}</td></tr>
+      </table>
+    </details>
+    {% else %}<p class="empty">No data yet.</p>{% endif %}
+  </div>
+
+  {# ---------- Chart 3: 30-day trend ---------- #}
+  <div class="card">
+    <div class="chart-head">
+      <h2>Daily attendance – last 30 days</h2>
+      <div class="legend-row">
+        <span><i class="sw sw-line" style="background:var(--s-present)"></i>Present (incl. half day)</span>
+        <span><i class="sw sw-line" style="background:var(--s-absent)"></i>Absent</span>
+      </div>
+    </div>
+    <div id="trendChart" class="line-chart" aria-label="Line chart of daily present and absent counts for the last 30 days"></div>
+    <p class="small muted">Days with no attendance marked, or only weekly off (e.g. Sundays), are left blank.</p>
+    <details class="table-view"><summary>Show as table</summary>
+      <table>
+        <tr><th>Date</th><th class="num">Present</th><th class="num">Absent</th></tr>
+        {% for t in trend | reverse %}{% if t.present is not none %}<tr><td>{{ t.date | dmy }}</td><td class="num">{{ t.present }}</td><td class="num">{{ t.absent }}</td></tr>{% endif %}{% endfor %}
+      </table>
+    </details>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  {# ---------- Chart 4: police verification status ---------- #}
+  <div class="card">
+    <h2>Police verification status</h2>
+    {% set pv_max = [stats.pv_valid, stats.pv_expiring, stats.pv_expired, stats.pv_pending] | max %}
+    <div class="hbars">
+      {% for label, n, cls, icon, link in [('Valid', stats.pv_valid, 'good', '✔', 'valid'), ('Expiring in 30 days', stats.pv_expiring, 'warning', '!', 'expiring'), ('Expired', stats.pv_expired, 'critical', '✖', 'expired'), ('Not done', stats.pv_pending, 'serious', '?', 'pending')] %}
+      <div class="hbar-row">
+        <a class="hbar-label" href="{{ url_for('employees', pv=link) }}"><span class="st-icon st-{{ cls }}">{{ icon }}</span> {{ label }}</a>
+        <div class="hbar-track">{% if n %}<span class="seg st-bg-{{ cls }}" style="width:{{ n * 100 / pv_max }}%" tabindex="0" data-tip="{{ label }}: {{ n }}"></span>{% endif %}</div>
+        <div class="hbar-value"><strong>{{ n }}</strong></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% if pv_alerts %}
+    <h3 class="sub">Expired / expiring soon</h3>
+    <table>
+      <tr><th>Employee</th><th>Firm</th><th>Valid upto</th></tr>
+      {% for e in pv_alerts %}
+      <tr>
+        <td><a href="{{ url_for('employee_view', emp_id=e.id) }}">{{ e.name }}</a></td>
+        <td class="small">{{ e.firm_name }}</td>
+        <td>{% set st = pv_state(e) %}<span class="badge {{ 'bad' if st == 'expired' else 'warn' }}">{{ e.pv_valid_upto | dmy }}</span></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Contracts ending within 30 days</h2>
+    {% if contract_alerts %}
+    <table>
+      <tr><th>Firm</th><th>Work order</th><th>Contract end</th></tr>
+      {% for f in contract_alerts %}
+      <tr><td><a href="{{ url_for('firm_view', firm_id=f.id) }}">{{ f.name }}</a></td>
+        <td class="small">{{ f.work_order_no or '-' }}</td>
+        <td><span class="badge {{ 'bad' if f.contract_end < today else 'warn' }}">{{ f.contract_end | dmy }}</span></td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">No contracts ending soon.</p>{% endif %}
+  </div>
+</div>
+<div id="chartTip" class="chart-tip" role="tooltip" hidden></div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.TREND = {{ trend | tojson }};</script>
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+{% endblock %}

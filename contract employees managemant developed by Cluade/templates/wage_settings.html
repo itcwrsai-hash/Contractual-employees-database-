@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Wage rates &amp; settings{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Wage rates &amp; payroll settings</h1>
+    <p class="muted small">Enter the minimum daily wage (basic + VDA) for each skill category. When the rate is revised (e.g. VDA from 1 April / 1 October), add a new rate with its effective date – old months keep the old rate.</p></div>
+  <a class="btn secondary" href="{{ url_for('wages') }}">← Wage sheet</a>
+</div>
+
+<div class="stats">
+  {% for sk in SKILL_CATEGORIES %}
+  <div class="stat"><div class="num">{{ '₹%.2f' % current[sk] if current[sk] else '—' }}</div><div class="lbl">{{ sk }} – per day today</div></div>
+  {% endfor %}
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h2>Daily wage rates</h2>
+    <table>
+      <tr><th>Skill</th><th>Effective from</th><th class="num">Rate / day (₹)</th><th class="num">of which DA</th><th>Notes</th><th></th></tr>
+      {% for r in rates %}
+      <tr>
+        <td>{{ r.skill_category }}</td><td>{{ r.effective_from | dmy }}</td>
+        <td class="num">{{ '%.2f' % r.daily_rate }}</td><td class="num">{{ '%.2f' % r.da_rate if r.da_rate else '-' }}</td><td class="small muted">{{ r.notes or '' }}</td>
+        <td style="text-align:right">
+          <form method="post" class="inline" onsubmit="return confirm('Delete this rate?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="action" value="rate_delete"><input type="hidden" name="rate_id" value="{{ r.id }}">
+            <button class="btn danger sm">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="empty">No rates entered yet.</td></tr>
+      {% endfor %}
+    </table>
+    <form method="post" style="margin-top:14px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="rate_add">
+      <div class="row">
+        <div><label>Skill category</label><select name="skill_category" required>{% for sk in SKILL_CATEGORIES %}<option>{{ sk }}</option>{% endfor %}</select></div>
+        <div><label>Effective from</label><input type="date" name="effective_from" required></div>
+        <div><label>Daily rate – total (₹)</label><input type="number" name="daily_rate" step="0.01" min="0.01" required></div>
+        <div><label>of which DA / VDA (₹)</label><input type="number" name="da_rate" step="0.01" min="0" placeholder="0">
+          <div class="hint">Shown separately on the appointment letter and Form V wage slip.</div></div>
+      </div>
+      <div class="row"><div><label>Notes (optional)</label><input type="text" name="notes" placeholder="e.g. Central minimum wage, Area B, incl. VDA"></div></div>
+      <button class="btn">Add rate</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Payroll settings</h2>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="settings">
+      <p><label style="font-weight:400"><input type="checkbox" name="pay_weekly_off" value="1" {{ 'checked' if s.pay_weekly_off }}> Pay for weekly off days (W)</label>
+         <label style="font-weight:400"><input type="checkbox" name="pay_leave" value="1" {{ 'checked' if s.pay_leave }}> Pay for leave days (L)</label></p>
+      <div class="row">
+        <div><label>EPF – employee %</label><input type="number" step="0.01" min="0" name="pf_rate" value="{{ s.pf_rate }}"></div>
+        <div><label>EPF – employer %</label><input type="number" step="0.01" min="0" name="pf_employer_rate" value="{{ s.pf_employer_rate }}"></div>
+        <div><label>EPF wage ceiling (₹/month, 0 = none)</label><input type="number" step="1" min="0" name="pf_ceiling" value="{{ s.pf_ceiling | int }}"></div>
+      </div>
+      <div class="row">
+        <div><label>ESI – employee %</label><input type="number" step="0.01" min="0" name="esi_rate" value="{{ s.esi_rate }}"></div>
+        <div><label>ESI – employer %</label><input type="number" step="0.01" min="0" name="esi_employer_rate" value="{{ s.esi_employer_rate }}"></div>
+        <div><label>ESI applies up to gross (₹/month)</label><input type="number" step="1" min="0" name="esi_limit" value="{{ s.esi_limit | int }}"></div>
+      </div>
+      <button class="btn">Save settings</button>
+    </form>
+    <p class="small muted" style="margin-top:12px">EPF is calculated on basic wages (not on other allowances), rounded to the nearest rupee. ESI is calculated on gross earnings and rounded up to the next rupee, as per ESIC rules.</p>
+  </div>
+</div>
+{% endblock %}

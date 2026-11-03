@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ firm.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ firm.name }} <span class="badge {{ 'ok' if firm.status == 'Active' else 'grey' }}">{{ firm.status }}</span></h1>
+    <p class="muted small">LOA {{ firm.work_order_no or '-' }}{% if firm.loa_date %} dt. {{ firm.loa_date | dmy }}{% endif %} · {{ firm.contract_start | dmy }} to {{ firm.contract_end | dmy }}</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('employee_form', firm_id=firm.id) }}">+ Add employee</a>
+    <a class="btn secondary" href="{{ url_for('attendance', firm_id=firm.id) }}">Mark attendance</a>
+    <a class="btn secondary" href="{{ url_for('attendance_report', firm_id=firm.id) }}">Monthly register</a>
+    <a class="btn secondary" href="{{ url_for('employee_card', firm_id=firm.id) }}" target="_blank">Print all gate passes</a>
+    <a class="btn secondary" href="{{ url_for('appointment_letter', firm_id=firm.id) }}" target="_blank">Print all appointment letters</a>
+    <a class="btn secondary" href="{{ url_for('firm_form', firm_id=firm.id) }}">Edit</a>
+    <form method="post" action="{{ url_for('firm_delete', firm_id=firm.id) }}" class="inline" onsubmit="return confirm('Delete this firm permanently?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger">Delete</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <dl class="details">
+    <dt>Owner / Proprietor</dt><dd>{{ firm.owner_name or '-' }}</dd>
+    <dt>Contact person</dt><dd>{{ firm.contact_person or '-' }}</dd>
+    <dt>Mobile</dt><dd>{{ firm.mobile or '-' }}</dd>
+    <dt>Email</dt><dd>{{ firm.email or '-' }}</dd>
+    <dt>Address</dt><dd>{{ firm.address or '-' }}{% if firm.pincode %} – {{ firm.pincode }}{% endif %}</dd>
+    <dt>GST no.</dt><dd>{{ firm.gst_no or '-' }}</dd>
+    <dt>PAN no.</dt><dd>{{ firm.pan_no or '-' }}</dd>
+    <dt>Labour licence no.</dt><dd>{{ firm.labour_licence_no or '-' }}</dd>
+    <dt>Registration no.</dt><dd>{{ firm.registration_no or '-' }}</dd>
+    <dt>LIN</dt><dd>{{ firm.lin_no or '-' }}</dd>
+    <dt>Nature of work</dt><dd>{{ firm.work_description or '-' }}</dd>
+  </dl>
+</div>
+
+<h2>Employees ({{ employees|length }})</h2>
+<div class="table-wrap">
+<table>
+  <tr><th></th><th>Code</th><th>Name</th><th>Father's name</th><th>Designation</th><th>Skill</th><th>Police verification</th><th>Status</th></tr>
+  {% for e in employees %}
+  {% include "_employee_row.html" %}
+  {% else %}
+  <tr><td colspan="8" class="empty">No employees registered under this firm yet.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

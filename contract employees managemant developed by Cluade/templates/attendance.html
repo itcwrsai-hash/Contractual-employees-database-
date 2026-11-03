@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Attendance{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Daily attendance</h1><p class="muted small">Select a firm and date, mark each employee, then save.</p></div></div>
+<form class="filters" method="get">
+  <div class="grow"><label>Firm</label>
+    <select name="firm_id" onchange="this.form.submit()"><option value="">-- Select firm --</option>
+      {% for f in firms %}<option value="{{ f.id }}" {{ 'selected' if firm_id == f.id }}>{{ f.name }}</option>{% endfor %}</select></div>
+  <div><label>Date</label><input type="date" name="date" value="{{ att_date }}" max="{{ today }}" onchange="this.form.submit()"></div>
+  <div><button class="btn secondary">Show</button></div>
+</form>
+
+{% if firm_id %}
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="firm_id" value="{{ firm_id }}">
+  <input type="hidden" name="date" value="{{ att_date }}">
+  {% if rows %}
+  <div class="actions" style="margin-bottom:10px">
+    <span class="muted small" style="align-self:center">Mark all as:</span>
+    {% for code, label in ATTENDANCE_CODES.items() %}
+    <button type="button" class="btn secondary sm" onclick="markAll('{{ code }}')">{{ label }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="table-wrap">
+  <table>
+    <tr><th></th><th>Code</th><th>Name</th><th>Designation</th><th>Attendance</th><th>Remarks</th></tr>
+    {% for r in rows %}
+    <tr>
+      <td>{% if r.photo_file %}<img class="avatar" src="{{ url_for('files', rel_path=r.photo_file) }}" alt="">{% else %}<span class="avatar ph">-</span>{% endif %}</td>
+      <td>{{ r.emp_code }}</td>
+      <td><strong>{{ r.name }}</strong><div class="small muted">{{ r.skill_category }}</div></td>
+      <td>{{ r.designation or '-' }}</td>
+      <td><div class="att-opts">
+        {% for code, label in ATTENDANCE_CODES.items() %}
+        <input type="radio" name="status_{{ r.id }}" id="s{{ r.id }}{{ code }}" value="{{ code }}" {{ 'checked' if r.status == code }}>
+        <label for="s{{ r.id }}{{ code }}" class="{{ code }}" title="{{ label }}">{{ code }}</label>
+        {% endfor %}
+        <input type="radio" name="status_{{ r.id }}" id="s{{ r.id }}X" value="" {{ 'checked' if not r.status }}>
+        <label for="s{{ r.id }}X" class="X" title="Not marked">–</label>
+      </div></td>
+      <td><input type="text" name="remarks_{{ r.id }}" value="{{ r.remarks or '' }}" placeholder="Optional"></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="empty">No active employees in this firm.</td></tr>
+    {% endfor %}
+  </table>
+  </div>
+  <p class="legend small muted">{% for code, label in ATTENDANCE_CODES.items() %}<span><strong class="c-{{ code }}">{{ code }}</strong> = {{ label }}</span>{% endfor %}<span><strong>–</strong> = Not marked</span></p>
+  {% if rows %}<div class="sticky-save"><button class="btn">Save attendance</button></div>{% endif %}
+</form>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+function markAll(code) {
+  document.querySelectorAll('.att-opts input[value="' + code + '"]').forEach(r => r.checked = true);
+}
+</script>
+{% endblock %}

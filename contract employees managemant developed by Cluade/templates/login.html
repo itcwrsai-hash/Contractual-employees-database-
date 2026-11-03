@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <div class="logo">{{ icon('train', 28) }}</div>
+    <h1>{{ APP_NAME }}</h1>
+    <p class="sub">{{ WORKSHOP }}<br>Sign in to continue</p>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <p><label>Username</label><input type="text" name="username" required autofocus autocomplete="username"></p>
+      <p><label>Password</label><input type="password" name="password" required autocomplete="current-password"></p>
+      <button class="btn">Sign in</button>
+    </form>
+    <div class="org-line">Developed by {{ DEVELOPED_BY }}</div>
+  </div>
+</div>
+{% endblock %}

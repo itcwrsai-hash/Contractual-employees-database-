@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit firm' if editing else 'Add firm' }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ 'Edit firm' if editing else 'Add new firm' }}</h1></div>
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <fieldset>
+    <legend>Firm details</legend>
+    <div class="row">
+      <div><label>Firm name <span class="req">*</span></label><input type="text" name="name" value="{{ firm.name or '' }}" required></div>
+      <div><label>Owner / Proprietor</label><input type="text" name="owner_name" value="{{ firm.owner_name or '' }}"></div>
+      <div><label>Contact person (site supervisor)</label><input type="text" name="contact_person" value="{{ firm.contact_person or '' }}"></div>
+    </div>
+    <div class="row">
+      <div><label>Mobile no.</label><input type="tel" name="mobile" value="{{ firm.mobile or '' }}" pattern="[6-9][0-9]{9}" maxlength="10" title="10-digit mobile number"></div>
+      <div><label>Email</label><input type="email" name="email" value="{{ firm.email or '' }}"></div>
+      <div><label>Status</label>
+        <select name="status">{% for s in ['Active', 'Inactive'] %}<option {{ 'selected' if firm.status == s }}>{{ s }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="row">
+      <div style="grid-column: span 2"><label>Address</label><textarea name="address">{{ firm.address or '' }}</textarea></div>
+      <div><label>PIN code</label><input type="text" name="pincode" value="{{ firm.pincode or '' }}" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" title="6-digit PIN code"></div>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>Registration &amp; contract</legend>
+    <div class="row">
+      <div><label>GST no.</label><input type="text" name="gst_no" value="{{ firm.gst_no or '' }}" maxlength="15"></div>
+      <div><label>PAN no.</label><input type="text" name="pan_no" value="{{ firm.pan_no or '' }}" maxlength="10"></div>
+      <div><label>Labour licence no.</label><input type="text" name="labour_licence_no" value="{{ firm.labour_licence_no or '' }}"></div>
+    </div>
+    <div class="row">
+      <div><label>Registration no. of firm</label><input type="text" name="registration_no" value="{{ firm.registration_no or '' }}">
+        <div class="hint">Printed on the gate pass (item 6).</div></div>
+      <div><label>LIN (Labour Identification No.)</label><input type="text" name="lin_no" value="{{ firm.lin_no or '' }}">
+        <div class="hint">Printed on the appointment letter (item v).</div></div>
+    </div>
+    <div class="row">
+      <div><label>LOA / Work order no.</label><input type="text" name="work_order_no" value="{{ firm.work_order_no or '' }}"></div>
+      <div><label>LOA date</label><input type="date" name="loa_date" value="{{ firm.loa_date or '' }}"></div>
+    </div>
+    <div class="row">
+      <div><label>Contract start date</label><input type="date" name="contract_start" value="{{ firm.contract_start or '' }}"></div>
+      <div><label>Contract end date</label><input type="date" name="contract_end" value="{{ firm.contract_end or '' }}"></div>
+    </div>
+    <div class="row"><div><label>Nature of work</label><textarea name="work_description" placeholder="e.g. Coach cleaning, loading/unloading, machining support">{{ firm.work_description or '' }}</textarea></div></div>
+  </fieldset>
+  <div class="sticky-save">
+    <a class="btn secondary" href="{{ request.referrer or url_for('firms') }}">Cancel</a>
+    <button class="btn">Save firm</button>
+  </div>
+</form>
+{% endblock %}

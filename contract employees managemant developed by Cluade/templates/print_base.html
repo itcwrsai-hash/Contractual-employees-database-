@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% endblock %} · {{ APP_NAME }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='print.css') }}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <div class="print-toolbar no-print">
+    <a class="pbtn secondary" href="{{ back or url_for('dashboard') }}">← Back</a>
+    <span class="ptitle">{{ self.title() }}{% block count %}{% endblock %}</span>
+    <button class="pbtn" onclick="window.print()">Print</button>
+  </div>
+  {% block pages %}{% endblock %}
+</body>
+</html>

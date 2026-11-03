@@ -1,0 +1,76 @@
+/* Printable documents: appointment letter, Form V wage slip, ID card cum gate pass. A4 portrait. */
+@page { size: A4 portrait; margin: 12mm; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #e9edf3; color: #111; font-family: Calibri, Carlito, "Nirmala UI", "Mangal", "Segoe UI", Arial, sans-serif;
+  font-size: 14px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { width: 210mm; min-height: 297mm; margin: 16px auto; padding: 14mm 14mm; background: #fff; box-shadow: 0 6px 24px rgba(16, 24, 40, .15); }
+
+/* toolbar (screen only) */
+.print-toolbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 10px 18px;
+  background: #0b1a33; color: #fff; font-family: "Segoe UI", system-ui, sans-serif; }
+.ptitle { flex: 1; font-weight: 600; font-size: 14px; }
+.pbtn { font: inherit; font-size: 14px; font-weight: 600; padding: 7px 16px; border-radius: 8px; border: 1px solid #2453d6;
+  background: #2453d6; color: #fff; cursor: pointer; text-decoration: none; }
+.pbtn.secondary { background: transparent; border-color: #4a5d82; color: #dbe4f5; }
+
+/* filled-in blanks */
+.fill { display: inline-block; min-width: 60mm; border-bottom: 1px solid #333; padding: 0 4px 1px; font-weight: 600; }
+.fill.short { min-width: 26mm; }
+.fill.wide { min-width: 120mm; }
+.fill:empty::after { content: "\00a0"; }
+
+/* ---------- appointment letter & Form V ---------- */
+.letterhead { text-align: center; border-bottom: 2px solid #0b2e6b; padding-bottom: 6px; margin-bottom: 14px; }
+.letterhead .firm { font-size: 17px; font-weight: 700; color: #0b2e6b; }
+.letterhead .addr { font-size: 12px; color: #444; }
+.doc-title { text-align: center; font-size: 18px; font-weight: 700; margin: 6px 0 12px; }
+.doc-note { margin: 0 auto 18px; padding: 8px 14px; background: #f2f3f5; border-left: 4px solid #0b2e6b; font-style: italic;
+  color: #333; font-size: 13.5px; width: fit-content; }
+.form-table { width: 100%; border-collapse: collapse; }
+.form-table td { border: 1px solid #d9d9d9; padding: 9px 10px; vertical-align: top; font-size: 13.5px; line-height: 1.45; }
+.form-table td:first-child { width: 46%; }
+.form-table td:last-child { font-weight: 600; }
+.form-table .sub { font-weight: 400; display: block; padding-left: 10px; }
+.form-table .amt { display: block; }
+.head-fields { margin: 0 0 16px; font-size: 14px; }
+.head-fields div { margin: 6px 0; font-weight: 600; }
+.head-fields .fill { font-weight: 700; }
+.head-fields .fill.wide { min-width: 95mm; }
+.sign-block { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px; font-size: 13.5px; }
+.sign-block .sig { text-align: right; font-weight: 700; }
+.sign-block .sig span { display: block; border-top: 1.5px solid #222; padding-top: 4px; min-width: 75mm; }
+.form-v .page { min-height: auto; }
+
+/* ---------- ID card cum gate pass ---------- */
+.gate-pass { font-family: "Times New Roman", Times, "Nirmala UI", serif; font-size: 13.5px; }
+.gp-box { border: 1px solid #555; padding: 10px 16px 14px; margin: 0 auto 14mm; width: 182mm; position: relative; }
+.gp-title { text-align: center; font-weight: 700; color: #1f3864; text-decoration: underline; font-size: 14px; margin: 0 0 10px; }
+.gp-row { margin: 9px 0; display: flex; align-items: baseline; gap: 6px; }
+.gp-row .lbl { flex: none; }
+.gp-row .lbl.w { width: 38mm; }
+.gp-row .fill { min-width: 0; flex: 1; max-width: 108mm; }
+.gp-front .gp-row .fill { max-width: 100mm; }
+.gp-row .fill.short { flex: none; min-width: 30mm; }
+.gp-photo { position: absolute; top: 40px; right: 16px; width: 33mm; height: 40mm; border: 1px solid #555; display: flex; align-items: center;
+  justify-content: center; text-align: center; color: #888; font-size: 12px; padding: 4px; overflow: hidden; }
+.gp-photo img { width: 100%; height: 100%; object-fit: cover; }
+.gp-content { padding-right: 40mm; }
+.gp-sign { display: flex; justify-content: space-between; margin-top: 34px; padding: 0 10px; }
+.gp-note { border-top: 1px dashed #555; border-bottom: 1px dashed #555; padding: 5px 0; margin: 14px 0 8px; font-size: 13px; }
+.gp-note b { font-weight: 400; }
+.gp-back .gp-sign { margin-top: 46px; }
+.inline-pair { display: flex; gap: 20px; }
+.inline-pair .gp-row { flex: none; }
+
+@media screen and (max-width: 840px) {
+  .page { width: auto; min-height: auto; margin: 8px; padding: 18px; }
+  .gp-box { width: auto; }
+  .gp-content { padding-right: 0; }
+  .gp-photo { position: static; margin: 0 0 10px auto; }
+}
+@media print {
+  body { background: #fff; }
+  .no-print { display: none !important; }
+  .page { margin: 0; padding: 0; box-shadow: none; width: auto; min-height: auto; page-break-after: always; break-after: page; }
+  .page:last-child { page-break-after: auto; break-after: auto; }
+}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ emp.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ emp.name }} <span class="badge {{ 'ok' if emp.status == 'Active' else 'grey' }}">{{ emp.status }}</span></h1>
+    <p class="muted small">{{ emp.emp_code }} · <a href="{{ url_for('firm_view', firm_id=emp.firm_id) }}">{{ emp.firm_name }}</a></p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('employee_form', emp_id=emp.id) }}">Edit</a>
+    <a class="btn secondary" href="{{ url_for('appointment_letter', emp_id=emp.id) }}" target="_blank">Appointment letter</a>
+    <a class="btn secondary" href="{{ url_for('employee_card', emp_id=emp.id) }}" target="_blank">ID card / Gate pass</a>
+    <form method="post" action="{{ url_for('employee_delete', emp_id=emp.id) }}" class="inline"
+          onsubmit="return confirm('Delete {{ emp.name }} and all their documents and attendance permanently?\n\nTip: to keep records, edit the employee and set Status to Inactive instead.')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger">Delete</button>
+    </form>
+  </div>
+</div>
+
+<div class="card profile">
+  <div>
+    {% if emp.photo_file %}<a href="{{ url_for('files', rel_path=emp.photo_file) }}" target="_blank"><img class="photo" src="{{ url_for('files', rel_path=emp.photo_file) }}" alt="Photo"></a>
+    {% else %}<div class="photo-preview" style="width:180px;height:216px">No photo</div>{% endif %}
+  </div>
+  <dl class="details">
+    <dt>Father's name</dt><dd>{{ emp.father_name or '-' }}</dd>
+    <dt>Date of birth</dt><dd>{{ emp.dob | dmy }}</dd>
+    <dt>Gender</dt><dd>{{ emp.gender or '-' }}</dd>
+    <dt>Mobile</dt><dd>{{ emp.mobile or '-' }}</dd>
+    <dt>Blood group</dt><dd>{{ emp.blood_group or '-' }}</dd>
+    <dt>Address</dt><dd>{{ emp.address or '-' }}{% if emp.pincode %} – {{ emp.pincode }}{% endif %}</dd>
+    <dt>Gate pass</dt><dd>No. {{ emp.gate_pass_no or emp.emp_code }}{% if emp.gp_valid_upto %} · valid upto {{ emp.gp_valid_upto | dmy }}{% endif %}</dd>
+    <dt>Aadhaar no.</dt><dd>{{ emp.aadhaar_no | fmt_aadhaar }}
+      {% if emp.aadhaar_file %} · <a href="{{ url_for('files', rel_path=emp.aadhaar_file) }}" target="_blank">View Aadhaar card</a>{% else %} · <span class="badge warn">Card not uploaded</span>{% endif %}</dd>
+    <dt>Designation / Trade</dt><dd>{{ emp.designation or '-' }}</dd>
+    <dt>Skill category</dt><dd>{{ emp.skill_category or '-' }}</dd>
+    <dt>Qualification</dt><dd>{{ emp.qualification or '-' }}</dd>
+    <dt>Date of joining</dt><dd>{{ emp.date_of_joining | dmy }}</dd>
+    <dt>Daily wage</dt><dd>{{ '₹%.2f (agreed)' % emp.daily_wage if emp.daily_wage else 'Minimum wage for ' ~ (emp.skill_category or 'skill') }}
+      · <a href="{{ url_for('payslip', emp_id=emp.id, month=month) }}" target="_blank">This month's wage slip</a></dd>
+    <dt>UAN / ESIC IP no.</dt><dd>{{ emp.uan_no or '-' }} / {{ emp.esic_no or '-' }}</dd>
+    <dt>Bank</dt><dd>{{ emp.bank_name or '-' }}{% if emp.bank_account %} · A/c {{ emp.bank_account }} · {{ emp.ifsc or '' }}{% endif %}</dd>
+    <dt>Police verification</dt><dd>
+      {% set st = pv_state(emp) %}
+      {% if st == 'pending' %}<span class="badge warn">Not completed</span>
+      {% else %}
+        <span class="badge {{ 'bad' if st == 'expired' else ('warn' if st == 'expiring' else 'ok') }}">
+          Completed · {{ 'expired on' if st == 'expired' else 'valid upto' }} {{ emp.pv_valid_upto | dmy }}</span>
+        {% if emp.pv_cert_no %}<span class="small muted"> Ref: {{ emp.pv_cert_no }}</span>{% endif %}
+        {% if emp.pv_file %} · <a href="{{ url_for('files', rel_path=emp.pv_file) }}" target="_blank">View certificate</a>{% endif %}
+      {% endif %}</dd>
+    <dt>Attendance ({{ month }})</dt><dd>
+      <span class="c-P">P {{ att.P }}</span> · <span class="c-H">H {{ att.H }}</span> · <span class="c-A">A {{ att.A }}</span> ·
+      <span class="c-L">L {{ att.L }}</span> · <span class="c-W">W {{ att.W }}</span>
+      · <a href="{{ url_for('attendance_report', firm_id=emp.firm_id, month=month) }}">register</a></dd>
+  </dl>
+</div>
+
+<div class="card" id="documents">
+  <h2>Documents</h2>
+  <ul class="doc-list">
+    {% for d in docs %}
+    <li>
+      <div style="display:flex;gap:10px;align-items:center">
+        {% if d.filename | is_image %}<img class="doc-thumb" src="{{ url_for('files', rel_path=d.filename) }}" alt="">{% else %}<span class="badge info">PDF</span>{% endif %}
+        <div><a href="{{ url_for('files', rel_path=d.filename) }}" target="_blank">{{ d.title or 'Document' }}</a>
+          <div class="small muted">{{ d.doc_type }} · uploaded {{ d.uploaded_at[:10] | dmy }}</div></div>
+      </div>
+      <form method="post" action="{{ url_for('document_delete', doc_id=d.id) }}" class="inline" onsubmit="return confirm('Delete this document?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn danger sm">Delete</button>
+      </form>
+    </li>
+    {% else %}
+    <li class="muted">No documents uploaded.</li>
+    {% endfor %}
+  </ul>
+  <form method="post" action="{{ url_for('document_upload', emp_id=emp.id) }}" enctype="multipart/form-data" style="margin-top:14px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="row">
+      <div><label>Document type</label><select name="doc_type">{% for t in DOC_TYPES %}<option>{{ t }}</option>{% endfor %}</select></div>
+      <div><label>Title (optional)</label><input type="text" name="title" placeholder="e.g. ITI certificate"></div>
+      <div><label>Files</label><input type="file" name="files" multiple accept="image/*,.pdf" required></div>
+    </div>
+    <button class="btn">Upload</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Firms{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Contractor firms</h1><p class="muted small">{{ firms|length }} firm(s)</p></div>
+  <a class="btn" href="{{ url_for('firm_form') }}">+ Add firm</a>
+</div>
+<form class="filters" method="get">
+  <div class="grow"><label>Search</label><input type="search" name="q" value="{{ q }}" placeholder="Firm name, owner or work order no."></div>
+  <div><button class="btn secondary">Search</button></div>
+</form>
+<div class="table-wrap">
+<table>
+  <tr><th>Firm name</th><th>Owner / Proprietor</th><th>Mobile</th><th>Work order</th><th>Contract period</th><th>Employees</th><th>Status</th></tr>
+  {% for f in firms %}
+  <tr>
+    <td><a href="{{ url_for('firm_view', firm_id=f.id) }}"><strong>{{ f.name }}</strong></a></td>
+    <td>{{ f.owner_name or '-' }}</td>
+    <td>{{ f.mobile or '-' }}</td>
+    <td>{{ f.work_order_no or '-' }}</td>
+    <td class="small">{{ f.contract_start | dmy }} to {{ f.contract_end | dmy }}</td>
+    <td>{{ f.emp_count }}</td>
+    <td><span class="badge {{ 'ok' if f.status == 'Active' else 'grey' }}">{{ f.status }}</span></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="empty">No firms found.</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}
